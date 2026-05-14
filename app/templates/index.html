@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div id="main-container">
+    <div id="map"></div>
+    <div id="sidebar">
+        <div id="sidebar-content">
+            <div class="text-center mt-5">
+                <h4 class="text-secondary">請點擊地圖站點</h4>
+                <p class="text-muted small">點擊地圖上的標記點以查看即時到站資訊</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+{% endblock %}
