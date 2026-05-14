@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}多運具轉乘路徑演算 - 交通資訊整合平台{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-5 mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h4 class="mb-0"><i class="bi bi-search me-2"></i>規劃路線</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('f03.route_planner') }}">
+                    <div class="mb-3">
+                        <label for="start_point" class="form-label">起點</label>
+                        <input type="text" class="form-control" id="start_point" name="start_point" placeholder="例如：台北車站" required value="{{ request.form.get('start_point', '') }}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="end_point" class="form-label">終點</label>
+                        <input type="text" class="form-control" id="end_point" name="end_point" placeholder="例如：台北101" required value="{{ request.form.get('end_point', '') }}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label d-block">偏好交通工具</label>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="pref_mrt" name="preferences" value="mrt" checked>
+                            <label class="form-check-label" for="pref_mrt">捷運</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="pref_bus" name="preferences" value="bus" checked>
+                            <label class="form-check-label" for="pref_bus">公車</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="pref_youbike" name="preferences" value="youbike" checked>
+                            <label class="form-check-label" for="pref_youbike">YouBike</label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="checkbox" id="pref_train" name="preferences" value="train">
+                            <label class="form-check-label" for="pref_train">火車</label>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">開始規劃</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        {% if route_result %}
+        <div class="card shadow-sm border-success">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-map me-2"></i>最佳路線建議</h5>
+                <span class="badge bg-light text-success fs-6">{{ route_result.eta }}</span>
+            </div>
+            <div class="card-body">
+                <div class="row text-center mb-4">
+                    <div class="col">
+                        <h6 class="text-muted mb-1">總花費時間</h6>
+                        <h3 class="mb-0 text-primary">{{ route_result.total_time }}<small class="fs-6 text-muted"> 分鐘</small></h3>
+                    </div>
+                    <div class="col">
+                        <h6 class="text-muted mb-1">預估花費</h6>
+                        <h3 class="mb-0 text-success">{{ route_result.total_cost }}<small class="fs-6 text-muted"> 元</small></h3>
+                    </div>
+                    <div class="col">
+                        <h6 class="text-muted mb-1">轉乘次數</h6>
+                        <h3 class="mb-0 text-info">{{ route_result.steps|length - 1 }}<small class="fs-6 text-muted"> 次</small></h3>
+                    </div>
+                </div>
+
+                <div class="timeline ps-3 border-start border-3 border-primary ms-3">
+                    {% for step in route_result.steps %}
+                    <div class="position-relative mb-4">
+                        <span class="position-absolute top-0 start-0 translate-middle p-2 bg-primary border border-light rounded-circle" style="margin-left: -1rem;"></span>
+                        <div class="ms-3">
+                            <h6 class="mb-1 fw-bold">{{ step.from }}</h6>
+                            <div class="p-2 bg-light rounded text-muted my-2 d-inline-block">
+                                {% if step.mode == '捷運' %}
+                                    <i class="bi bi-train-lightrail text-primary me-1"></i>
+                                {% elif step.mode == '公車' %}
+                                    <i class="bi bi-bus-front text-warning me-1"></i>
+                                {% elif step.mode == 'YouBike' %}
+                                    <i class="bi bi-bicycle text-success me-1"></i>
+                                {% elif step.mode == '火車' %}
+                                    <i class="bi bi-train-front text-info me-1"></i>
+                                {% else %}
+                                    <i class="bi bi-person-walking text-secondary me-1"></i>
+                                {% endif %}
+                                {{ step.instruction }} 
+                                <span class="badge bg-secondary ms-2">{{ step.duration }} 分鐘</span>
+                                {% if step.cost > 0 %}
+                                    <span class="badge bg-success ms-1">{{ step.cost }} 元</span>
+                                {% endif %}
+                            </div>
+                            {% if loop.last %}
+                            <h6 class="mt-2 fw-bold text-danger">{{ step.to }} (終點)</h6>
+                            <span class="position-absolute top-100 start-0 translate-middle p-2 bg-danger border border-light rounded-circle" style="margin-left: -1rem; margin-top: -0.5rem;"></span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="h-100 d-flex flex-column justify-content-center align-items-center text-muted" style="min-height: 300px;">
+            <i class="bi bi-signpost-split fs-1 mb-3"></i>
+            <h5>輸入起迄點以查看最佳轉乘路線</h5>
+            <p>支援捷運、公車、YouBike 與火車的跨運具規劃</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
