@@ -1,0 +1,193 @@
+/* 
+ * 台中大眾運輸站點狀態與擁擠度顯示系統 - 全域核心樣式與設計系統 (style.css)
+ * 遵循極致美學：深色玻璃擬態 (Dark Glassmorphism)、和諧 HSL 色彩系統、精緻微動態與現代排版。
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap');
+
+/* --- 設計系統 Token --- */
+:root {
+    --font-primary: 'Outfit', 'Noto Sans TC', sans-serif;
+    
+    /* 核心色彩系統 (深色奢華基調) */
+    --bg-gradient: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+    --panel-bg: rgba(30, 41, 59, 0.45);
+    --panel-border: rgba(255, 255, 255, 0.08);
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+    --text-highlight: #38bdf8;
+    
+    /* 擁擠度三色指標 (精心調配之 HSL 和諧色調，避開刺眼純色) */
+    --color-green-h: 142;
+    --color-green: hsl(var(--color-green-h), 70%, 45%);
+    --color-green-glow: hsla(var(--color-green-h), 70%, 45%, 0.25);
+    
+    --color-orange-h: 32;
+    --color-orange: hsl(var(--color-orange-h), 90%, 50%);
+    --color-orange-glow: hsla(var(--color-orange-h), 90%, 50%, 0.25);
+    
+    --color-red-h: 350;
+    --color-red: hsl(var(--color-red-h), 85%, 55%);
+    --color-red-glow: hsla(var(--color-red-h), 85%, 55%, 0.25);
+    
+    /* 捷運與公車類型顏色 */
+    --color-metro: #00b4d8;
+    --color-bus: #f72585;
+    
+    /* 動態與陰影 */
+    --shadow-premium: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    --transition-smooth: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    --radius-premium: 16px;
+}
+
+/* --- 基礎樣式重設與全域配置 --- */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background: var(--bg-gradient);
+    color: var(--text-primary);
+    font-family: var(--font-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+/* 玻璃微光背景光斑效果 */
+.bg-glow-spot {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, rgba(0, 0, 0, 0) 70%);
+    top: -100px;
+    left: -100px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.bg-glow-spot-secondary {
+    position: absolute;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle, rgba(247, 37, 133, 0.05) 0%, rgba(0, 0, 0, 0) 70%);
+    bottom: 10%;
+    right: -100px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* --- 容器配置 --- */
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+    position: relative;
+    z-index: 1;
+}
+
+/* --- 奢華玻璃擬態面板卡片 (Glassmorphism Card) --- */
+.glass-panel {
+    background: var(--panel-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--panel-border);
+    border-radius: var(--radius-premium);
+    box-shadow: var(--shadow-premium);
+    transition: var(--transition-smooth);
+}
+
+.glass-panel:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+}
+
+/* --- 標題排版 --- */
+h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    background: linear-gradient(to right, #ffffff, #38bdf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+}
+
+h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* --- 徽章指標樣式 --- */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    text-transform: uppercase;
+}
+
+.badge-metro {
+    background: rgba(0, 180, 216, 0.15);
+    color: var(--color-metro);
+    border: 1px solid rgba(0, 180, 216, 0.3);
+}
+
+.badge-bus {
+    background: rgba(247, 37, 133, 0.15);
+    color: var(--color-bus);
+    border: 1px solid rgba(247, 37, 133, 0.3);
+}
+
+/* 擁擠度狀態指標 */
+.crowd-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+    font-size: 0.9rem;
+    padding: 0.4rem 1rem;
+    border-radius: 8px;
+}
+
+.crowd-green {
+    background: rgba(var(--color-green-h), 70%, 45%, 0.12);
+    color: var(--color-green);
+    border: 1px solid rgba(var(--color-green-h), 70%, 45%, 0.25);
+    box-shadow: 0 0 15px var(--color-green-glow);
+}
+
+.crowd-orange {
+    background: rgba(var(--color-orange-h), 90%, 50%, 0.12);
+    color: var(--color-orange);
+    border: 1px solid rgba(var(--color-orange-h), 90%, 50%, 0.25);
+    box-shadow: 0 0 15px var(--color-orange-glow);
+}
+
+.crowd-red {
+    background: rgba(var(--color-red-h), 85%, 55%, 0.12);
+    color: var(--color-red);
+    border: 1px solid rgba(var(--color-red-h), 85%, 55%, 0.25);
+    box-shadow: 0 0 15px var(--color-red-glow);
+}
+
+/* 脈衝微動畫效果 */
+@keyframes pulse-glow {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(var(--color-green-h), 70%, 45%, 0.5);
+    }
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(var(--color-green-h), 70%, 45%, 0);
+    }
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(var(--color-green-h), 70%, 45%, 0);
+    }
+}
