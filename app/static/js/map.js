@@ -418,37 +418,26 @@ function triggerGPSLocation() {
 // 4. 多運具路線規劃與替代方案渲染 (目標四、五、六、七)
 // ==========================================
 function populateRouteDropdowns(stations) {
-    const startSelect = document.getElementById('start-station-select');
-    const endSelect = document.getElementById('end-station-select');
-    
-    // 清除舊選項
-    startSelect.innerHTML = '<option value="">-- 請選擇起點 --</option>';
-    endSelect.innerHTML = '<option value="">-- 請選擇終點 --</option>';
-
-    stations.forEach(station => {
-        const typeStr = station.transport_type === 'transfer' ? '轉乘點' : (station.transport_type === 'mrt' ? '捷運' : '公車');
-        const optText = `${station.station_name} (${typeStr})`;
-        
-        startSelect.innerHTML += `<option value="${station.station_id}">${optText}</option>`;
-        endSelect.innerHTML += `<option value="${station.station_id}">${optText}</option>`;
-    });
+    // 傳統 select 已被 autocomplete search input 取代，無須生成靜態選單
 }
 
 function setRouteStation(role, stationId) {
-    const select = document.getElementById(role === 'start' ? 'start-station-select' : 'end-station-select');
-    if (select) {
-        select.value = stationId;
+    const station = allStations.find(s => s.station_id === stationId);
+    if (station) {
+        const typeStr = station.transport_type === 'transfer' ? '轉乘點' : (station.transport_type === 'mrt' ? '捷運' : '公車');
+        document.getElementById(`${role}-station-input`).value = `${station.station_name} (${typeStr})`;
+        document.getElementById(`${role}-station-id`).value = station.station_id;
         switchTab('route');
     }
 }
 
 function planTripRoute() {
-    const startId = document.getElementById('start-station-select').value;
-    const endId = document.getElementById('end-station-select').value;
+    const startId = document.getElementById('start-station-id').value;
+    const endId = document.getElementById('end-station-id').value;
     const resultsContainer = document.getElementById('route-results-container');
 
     if (!startId || !endId) {
-        alert("請同時選擇「出發站點」與「目的站點」！");
+        alert("請同時選擇「出發站點」與「目的站點」！您可直接在起訖輸入框內打字搜尋。");
         return;
     }
 
@@ -1040,3 +1029,79 @@ function clearSearchInput() {
     document.getElementById('search-results-list').style.display = 'none';
     document.getElementById('clear-search-btn').style.display = 'none';
 }
+
+// ==========================================
+// 10. 路線規劃起訖點打字搜尋與聯動
+// ==========================================
+function handleRouteSearch(role) {
+    const query = document.getElementById(`${role}-station-input`).value.trim().toLowerCase();
+    const resultsContainer = document.getElementById(`${role}-search-results`);
+
+    // 當沒有輸入時，預設顯示前 8 個常用站點
+    let matched = allStations;
+    if (query) {
+        matched = allStations.filter(station => {
+            return station.station_name.toLowerCase().includes(query) || 
+                   station.transport_type.toLowerCase().includes(query);
+        });
+    }
+
+    if (matched.length === 0) {
+        resultsContainer.innerHTML = '<div class="text-center text-muted small py-3">查無符合的站點</div>';
+        resultsContainer.style.display = 'flex';
+        return;
+    }
+
+    let html = '';
+    matched.slice(0, 8).forEach(station => {
+        let typeText = '公車';
+        let typeClass = 'bg-info text-dark';
+        if (station.transport_type === 'mrt') {
+            typeText = '捷運';
+            typeClass = 'bg-secondary text-white';
+        } else if (station.transport_type === 'transfer') {
+            typeText = '轉乘點';
+            typeClass = 'bg-success text-white';
+        }
+
+        html += `
+            <div class="search-result-item" onclick="selectRouteStation('${role}', '${station.station_id}', '${station.station_name}', '${typeText}')">
+                <span class="search-result-name">${station.station_name}</span>
+                <span class="search-result-type badge ${typeClass}">${typeText}</span>
+            </div>
+        `;
+    });
+
+    resultsContainer.innerHTML = html;
+    resultsContainer.style.display = 'flex';
+}
+
+function selectRouteStation(role, stationId, stationName, typeStr) {
+    document.getElementById(`${role}-station-input`).value = `${stationName} (${typeStr})`;
+    document.getElementById(`${role}-station-id`).value = stationId;
+    document.getElementById(`${role}-search-results`).style.display = 'none';
+}
+
+// 點擊頁面其他地方時，隱藏搜尋下拉選單（包含起訖站和一般站點搜尋）
+document.addEventListener('click', function(e) {
+    // 站點即時搜尋
+    const searchContainer = document.querySelector('.search-container');
+    const searchResults = document.getElementById('search-results-list');
+    if (searchContainer && !searchContainer.contains(e.target) && searchResults) {
+        searchResults.style.display = 'none';
+    }
+
+    // 起點搜尋
+    const startContainer = document.getElementById('start-search-results');
+    const startInput = document.getElementById('start-station-input');
+    if (startInput && !startInput.contains(e.target) && startContainer && !startContainer.contains(e.target)) {
+        startContainer.style.display = 'none';
+    }
+
+    // 終點搜尋
+    const endContainer = document.getElementById('end-search-results');
+    const endInput = document.getElementById('end-station-input');
+    if (endInput && !endInput.contains(e.target) && endContainer && !endContainer.contains(e.target)) {
+        endContainer.style.display = 'none';
+    }
+});
