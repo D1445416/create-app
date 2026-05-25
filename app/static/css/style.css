@@ -918,3 +918,113 @@ body {
 .premium-toast-close:hover {
     color: var(--text-main);
 }
+
+/* Search Box CSS */
+.search-container {
+    position: relative;
+    z-index: 1010;
+}
+
+.input-group-custom {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 2px 14px;
+    transition: all 0.3s ease;
+}
+
+.input-group-custom:focus-within {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 10px rgba(14, 165, 233, 0.25);
+    background: rgba(15, 23, 42, 0.8);
+}
+
+.search-icon {
+    color: var(--text-muted);
+    margin-right: 10px;
+    font-size: 0.95rem;
+}
+
+.form-input-custom {
+    background: none;
+    border: none;
+    color: var(--text-main);
+    padding: 10px 0;
+    width: 100%;
+    outline: none;
+    font-size: 0.9rem;
+    font-family: var(--font-outfit);
+}
+
+.form-input-custom::placeholder {
+    color: rgba(148, 163, 184, 0.6);
+}
+
+.clear-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    transition: color 0.2s ease;
+}
+
+.clear-btn:hover {
+    color: var(--text-main);
+}
+
+/* Search Dropdown Results List */
+.search-results-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 100%;
+    max-height: 250px;
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px;
+    z-index: 1050;
+    animation: dropdownSlideIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes dropdownSlideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.search-result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.search-result-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.search-result-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-main);
+}
+
+.search-result-type {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+}

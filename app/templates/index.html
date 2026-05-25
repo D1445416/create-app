@@ -22,11 +22,21 @@
         
         <!-- Tab 1: Live Dynamic Arrivals -->
         <div class="tab-content-panel active" id="content-live">
+            <!-- Search Bar Area -->
+            <div class="search-container mb-3">
+                <div class="input-group-custom">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="station-search-input" class="form-input-custom" placeholder="搜尋站點或公車路線 (e.g. 市政府、300)..." oninput="handleStationSearch()">
+                    <button id="clear-search-btn" class="clear-btn" onclick="clearSearchInput()" style="display:none;"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div id="search-results-list" class="search-results-dropdown" style="display:none;"></div>
+            </div>
+            
             <div id="sidebar-live-content">
                 <div class="text-center mt-5 py-4">
                     <i class="fa-solid fa-map-location-dot text-secondary mb-3" style="font-size: 3rem; opacity: 0.3;"></i>
                     <h5 class="text-secondary">請點選地圖站點</h5>
-                    <p class="text-muted small px-4">在 Leaflet 地圖上點擊任何「公車」、「捷運」或「轉乘樞紐」標記點，即可即時顯示動態整合看板。</p>
+                    <p class="text-muted small px-4">在 Leaflet 地圖上點擊任何「公車」、「捷運」或「轉乘樞紐」標記點，即可即時顯示動態整合看板，或在上方輸入框直接搜尋。</p>
                 </div>
             </div>
         </div>
@@ -35,18 +45,29 @@
         <div class="tab-content-panel" id="content-route">
             <div class="station-card">
                 <h5 class="mb-3 text-info fw-bold"><i class="fa-solid fa-sliders me-1"></i> 路線起訖站點選擇</h5>
-                <div class="form-group-custom">
-                    <label for="start-station-select"><i class="fa-solid fa-circle-play text-success me-1"></i> 出發站點</label>
-                    <select id="start-station-select" class="form-select-custom">
-                        <option value="">-- 請選擇起點 --</option>
-                    </select>
+                
+                <!-- 起點站搜尋 -->
+                <div class="form-group-custom" style="position: relative;">
+                    <label for="start-station-input"><i class="fa-solid fa-circle-play text-success me-1"></i> 出發站點</label>
+                    <div class="input-group-custom">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="start-station-input" class="form-input-custom" placeholder="輸入起點站名搜尋..." oninput="handleRouteSearch('start')" onfocus="handleRouteSearch('start')">
+                        <input type="hidden" id="start-station-id" value="">
+                    </div>
+                    <div id="start-search-results" class="search-results-dropdown" style="display:none; max-height: 180px;"></div>
                 </div>
-                <div class="form-group-custom mt-3">
-                    <label for="end-station-select"><i class="fa-solid fa-circle-stop text-danger me-1"></i> 目的站點</label>
-                    <select id="end-station-select" class="form-select-custom">
-                        <option value="">-- 請選擇終點 --</option>
-                    </select>
+                
+                <!-- 終點站搜尋 -->
+                <div class="form-group-custom mt-3" style="position: relative;">
+                    <label for="end-station-input"><i class="fa-solid fa-circle-stop text-danger me-1"></i> 目的站點</label>
+                    <div class="input-group-custom">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="end-station-input" class="form-input-custom" placeholder="輸入終點站名搜尋..." oninput="handleRouteSearch('end')" onfocus="handleRouteSearch('end')">
+                        <input type="hidden" id="end-station-id" value="">
+                    </div>
+                    <div id="end-search-results" class="search-results-dropdown" style="display:none; max-height: 180px;"></div>
                 </div>
+                
                 <button class="btn btn-premium w-100 mt-4" onclick="planTripRoute()">
                     <i class="fa-solid fa-location-arrow me-1"></i> 開始規劃最佳路線
                 </button>
