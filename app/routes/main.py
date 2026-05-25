@@ -175,9 +175,9 @@ def get_route_plans():
             "total_fare": res1_fare["total_fare"],
             "total_minutes": res1_time["total_minutes"],
             "segments": [
-                {"type": "walking", "desc": "步行至捷運站", "value": "0.3 km", "minutes": res1_time["details"][0]["estimated_minutes"]},
-                {"type": "mrt", "desc": "搭乘捷運綠線", "value": "市政府站 ➔ 水安宮站", "minutes": res1_time["details"][1]["estimated_minutes"]},
-                {"type": "bus", "desc": "轉乘 300 路公車", "value": f"{round(distance * 0.8, 1)} km", "minutes": res1_time["details"][2]["estimated_minutes"]}
+                {"type": "walking", "desc": "步行至捷運站", "value": "0.3 km", "minutes": res1_time["details"][0]["estimated_minutes"], "fare": res1_fare["details"][0]["fare"]},
+                {"type": "mrt", "desc": "搭乘捷運綠線", "value": "市政府站 ➔ 水安宮站", "minutes": res1_time["details"][1]["estimated_minutes"], "fare": res1_fare["details"][1]["fare"]},
+                {"type": "bus", "desc": "轉乘 300 路公車", "value": f"{round(distance * 0.8, 1)} km", "minutes": res1_time["details"][2]["estimated_minutes"], "fare": res1_fare["details"][2]["fare"]}
             ],
             # 傳遞經緯度段落以便前端繪圖
             "path": [
@@ -194,7 +194,7 @@ def get_route_plans():
             "total_fare": res2_fare["total_fare"],
             "total_minutes": res2_time["total_minutes"],
             "segments": [
-                {"type": "bus", "desc": "搭乘 300/301 路台灣大道公車", "value": f"直達 {distance} km", "minutes": res2_time["details"][0]["estimated_minutes"]}
+                {"type": "bus", "desc": "搭乘 300/301 路台灣大道公車", "value": f"直達 {distance} km", "minutes": res2_time["details"][0]["estimated_minutes"], "fare": res2_fare["details"][0]["fare"]}
             ],
             "path": [
                 [start_sta['lat'], start_sta['lon']],
@@ -208,8 +208,8 @@ def get_route_plans():
             "total_fare": res3_fare["total_fare"],
             "total_minutes": res3_time["total_minutes"],
             "segments": [
-                {"type": "youbike", "desc": "騎乘 YouBike 2.0", "value": f"{distance} km", "minutes": res3_time["details"][0]["estimated_minutes"]},
-                {"type": "walking", "desc": "步行至目的地", "value": "0.2 km", "minutes": res3_time["details"][1]["estimated_minutes"]}
+                {"type": "youbike", "desc": "騎乘 YouBike 2.0", "value": f"{distance} km", "minutes": res3_time["details"][0]["estimated_minutes"], "fare": res3_fare["details"][0]["fare"]},
+                {"type": "walking", "desc": "步行至目的地", "value": "0.2 km", "minutes": res3_time["details"][1]["estimated_minutes"], "fare": res3_fare["details"][1]["fare"]}
             ],
             "path": [
                 [start_sta['lat'], start_sta['lon']],

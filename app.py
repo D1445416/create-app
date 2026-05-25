@@ -58,7 +58,9 @@ def init_db():
 def index():
     return render_template('index.html')
 
+# Auto-initialize SQLite database if it doesn't exist
+if not os.path.exists(app.config['DATABASE']):
+    init_db()
+
 if __name__ == '__main__':
-    if not os.path.exists(app.config['DATABASE']):
-        init_db()
     app.run(debug=True)

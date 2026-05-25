@@ -8,6 +8,7 @@ let countdownInterval = null;
 let currentRoutePolylines = []; // Store active polylines drawn on the map
 let userLocationMarker = null;
 let userLocationCircle = null;
+let activeReminders = {}; // Store bus and mrt arrival reminders
 
 document.addEventListener('DOMContentLoaded', function() {
     // 1. 初始化 Leaflet 地圖，中心點設在台中核心（台中市政府與捷運站週邊）
@@ -33,6 +34,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 6. 初始化載入「我的收藏」Tab 列表
     loadFavoritesSidebar();
+
+    // 7. 動態建立高級 Toast 提示容器
+    if (!document.getElementById('custom-toast-container')) {
+        const container = document.createElement('div');
+        container.id = 'custom-toast-container';
+        document.body.appendChild(container);
+    }
 });
 
 // ==========================================
@@ -118,6 +126,11 @@ function selectStation(stationId) {
                     <i class="fa-solid fa-circle-stop me-1"></i>設為終點
                 </button>
             </div>
+
+            <button class="btn btn-premium w-100 mb-3" style="font-size: 0.9rem;" onclick="triggerStationNavigation('${station.station_id}')">
+                <i class="fa-solid fa-route me-1"></i>🚶 步行導航與指引
+            </button>
+            <div id="navigation-panel-container"></div>
             
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <button id="fav-btn-${station.station_id}" class="btn btn-sm btn-outline-warning" onclick="toggleFavorite('${station.station_id}')">
@@ -196,10 +209,20 @@ function fetchArrivalData(stationId) {
                                         timeClass = 'time-later';
                                     }
                                     
+                                    const rKey = `${stationId}_bus_${item.RouteName}`;
+                                    const isReminderActive = activeReminders[rKey] ? 'active' : '';
+                                    
                                     return `
-                                        <div class="arrival-item">
+                                        <div class="arrival-item d-flex justify-content-between align-items-center">
                                             <span class="route-num">${item.RouteName} 路公車</span>
-                                            <span class="arrival-time ${timeClass}">${timeText}</span>
+                                            <div class="d-flex align-items-center">
+                                                <span class="arrival-time ${timeClass}">${timeText}</span>
+                                                <button class="reminder-btn ${isReminderActive}" 
+                                                        onclick="toggleArrivalReminder(event, '${stationId}', 'bus', '${item.RouteName}', ${item.EstimateTime})" 
+                                                        title="設為 3 分鐘到站提醒">
+                                                    <i class="fa-solid fa-bell"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     `;
                                 }).join('')}
@@ -226,10 +249,20 @@ function fetchArrivalData(stationId) {
                                         timeClass = 'time-soon';
                                     }
                                     
+                                    const rKey = `${stationId}_mrt_${item.Destination}`;
+                                    const isReminderActive = activeReminders[rKey] ? 'active' : '';
+                                    
                                     return `
-                                        <div class="arrival-item">
+                                        <div class="arrival-item d-flex justify-content-between align-items-center">
                                             <span class="route-num">往 ${item.Destination}</span>
-                                            <span class="arrival-time ${timeClass}">${timeText}</span>
+                                            <div class="d-flex align-items-center">
+                                                <span class="arrival-time ${timeClass}">${timeText}</span>
+                                                <button class="reminder-btn ${isReminderActive}" 
+                                                        onclick="toggleArrivalReminder(event, '${stationId}', 'mrt', '${item.Destination}', ${item.EstimateTime})" 
+                                                        title="設為 3 分鐘到站提醒">
+                                                    <i class="fa-solid fa-bell"></i>
+                                                </button>
+                                            </div>
                                         </div>
                                     `;
                                 }).join('')}
@@ -244,6 +277,10 @@ function fetchArrivalData(stationId) {
                 } else {
                     arrivalContainer.innerHTML = '<div class="text-center py-4 text-muted small">此站點目前無班次即時動態</div>';
                 }
+
+                // 觸發提醒檢測
+                if (data.bus) checkAndTriggerReminders(stationId, 'bus', data.bus);
+                if (data.mrt) checkAndTriggerReminders(stationId, 'mrt', data.mrt);
 
                 // 更新最後刷新時間標記
                 const now = new Date();
@@ -456,6 +493,13 @@ function renderRoutePlans(plans) {
             if (seg.type === 'bus') nodeClass = 'node-bus';
             if (seg.type === 'youbike') nodeClass = 'node-youbike';
             
+            let fareText = seg.fare !== undefined ? `NT$ ${seg.fare}` : '免費';
+            if (seg.fare === 0 && seg.type === 'bus') {
+                fareText = '十公里免費 NT$ 0';
+            } else if (seg.fare === 0 && seg.type === 'walking') {
+                fareText = '免費';
+            }
+            
             return `
                 <div class="segment-item">
                     <div class="segment-node ${nodeClass}"></div>
@@ -465,6 +509,8 @@ function renderRoutePlans(plans) {
                             <span>${seg.value}</span>
                             <span>•</span>
                             <span class="text-cyan"><i class="fa-regular fa-clock me-1"></i>${seg.minutes} 分鐘</span>
+                            <span>•</span>
+                            <span class="text-success"><i class="fa-solid fa-hand-holding-dollar me-1"></i>${fareText}</span>
                         </div>
                     </div>
                 </div>
@@ -704,4 +750,227 @@ function handleUrlParams() {
             selectStation(stationId);
         }, 800);
     }
+}
+
+// ==========================================
+// 7. 到站前 3 分鐘提醒與系統通知
+// ==========================================
+function toggleArrivalReminder(event, stationId, type, routeName, initialEstimate) {
+    event.stopPropagation();
+    
+    if (initialEstimate <= 180) {
+        showPremiumToast("已在範圍內", `該車次目前已在 3 分鐘內即將到站，不需再設定提醒囉！`, type);
+        return;
+    }
+
+    const key = `${stationId}_${type}_${routeName}`;
+    const btn = event.currentTarget;
+    const station = allStations.find(s => s.station_id === stationId);
+    const stationName = station ? station.station_name : "轉乘站點";
+
+    if (activeReminders[key]) {
+        delete activeReminders[key];
+        btn.classList.remove('active');
+        showPremiumToast("取消提醒", `已取消 ${routeName} 的到站提醒。`, type);
+    } else {
+        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission();
+        }
+
+        activeReminders[key] = {
+            stationId: stationId,
+            stationName: stationName,
+            transportType: type,
+            routeName: routeName,
+            notified: false
+        };
+        btn.classList.add('active');
+        showPremiumToast("設定成功", `已成功設定 ${routeName} ➔ 當車次到站前 3 分鐘時會跳出通知。`, type);
+    }
+}
+
+function checkAndTriggerReminders(stationId, type, dataList) {
+    if (!dataList || dataList.length === 0) return;
+    
+    dataList.forEach(item => {
+        const routeName = type === 'bus' ? item.RouteName : item.Destination;
+        const estSec = item.EstimateTime;
+        const key = `${stationId}_${type}_${routeName}`;
+        
+        if (activeReminders[key] && !activeReminders[key].notified) {
+            if (estSec <= 180 && estSec >= 0) {
+                activeReminders[key].notified = true;
+                triggerSystemNotification(activeReminders[key]);
+                
+                setTimeout(() => {
+                    delete activeReminders[key];
+                    if (activeStationId === stationId) {
+                        fetchArrivalData(stationId);
+                    }
+                }, 3000);
+            }
+        }
+    });
+}
+
+function triggerSystemNotification(reminder) {
+    const title = `🔔 乘車到站提醒！`;
+    const body = `${reminder.routeName} 即將在 3 分鐘內抵達【${reminder.stationName}】，請準備上車！`;
+    
+    if (Notification.permission === "granted") {
+        try {
+            new Notification(title, {
+                body: body
+            });
+        } catch (e) {
+            console.error("系統通知觸發失敗：", e);
+        }
+    }
+    
+    showPremiumToast(
+        "即將到站！", 
+        `${reminder.routeName} 即將在 3 分鐘內抵達【${reminder.stationName}】，請準備上車。`, 
+        reminder.transportType, 
+        10000
+    );
+    
+    if ('speechSynthesis' in window) {
+        const text = reminder.transportType === 'bus' 
+            ? `${reminder.routeName}公車即將抵達${reminder.stationName}，請準備上車。`
+            : `往${reminder.routeName}捷運即將抵達${reminder.stationName}，請準備上車。`;
+        const speech = new SpeechSynthesisUtterance(text);
+        speech.lang = 'zh-TW';
+        speech.rate = 1.0;
+        window.speechSynthesis.speak(speech);
+    }
+}
+
+function showPremiumToast(title, message, type = 'warning', duration = 5000) {
+    const container = document.getElementById('custom-toast-container');
+    if (!container) return;
+    
+    const toast = document.createElement('div');
+    toast.className = `premium-toast toast-${type}`;
+    
+    const icon = type === 'bus' ? 'fa-bus' : (type === 'mrt' ? 'fa-subway' : 'fa-bell');
+    
+    toast.innerHTML = `
+        <div class="premium-toast-icon"><i class="fa-solid ${icon}"></i></div>
+        <div class="premium-toast-body">
+            <div class="premium-toast-title">${title}</div>
+            <div class="premium-toast-desc">${message}</div>
+        </div>
+        <button class="premium-toast-close" onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>
+    `;
+    
+    container.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateY(-20px) scale(0.95)';
+            setTimeout(() => toast.remove(), 300);
+        }
+    }, duration);
+}
+
+// ==========================================
+// 8. 點對點 GPS 導航指引
+// ==========================================
+function triggerStationNavigation(stationId) {
+    const station = allStations.find(s => s.station_id === stationId);
+    if (!station) return;
+
+    if (!navigator.geolocation) {
+        alert("您的瀏覽器不支援定位，無法啟用導航指引。");
+        return;
+    }
+
+    showPremiumToast("定位中", "正在獲取您當前的精準 GPS 位置...", "info");
+
+    navigator.geolocation.getCurrentPosition(
+        (position) => {
+            const userLat = position.coords.latitude;
+            const userLon = position.coords.longitude;
+            const accuracy = position.coords.accuracy;
+
+            if (userLocationMarker) map.removeLayer(userLocationMarker);
+            if (userLocationCircle) map.removeLayer(userLocationCircle);
+
+            const gpsIcon = L.divIcon({
+                className: 'user-gps-marker',
+                html: '<div class="user-gps-dot"></div><div class="user-gps-ring"></div>',
+                iconSize: [16, 16],
+                iconAnchor: [8, 8]
+            });
+            userLocationMarker = L.marker([userLat, userLon], { icon: gpsIcon }).addTo(map);
+
+            userLocationCircle = L.circle([userLat, userLon], {
+                radius: accuracy,
+                color: '#0088ff',
+                fillColor: '#0088ff',
+                fillOpacity: 0.1,
+                weight: 1.5
+            }).addTo(map);
+
+            currentRoutePolylines.forEach(line => map.removeLayer(line));
+            currentRoutePolylines = [];
+
+            const navLine = L.polyline([[userLat, userLon], [station.lat, station.lon]], {
+                color: '#f59e0b',
+                weight: 4,
+                dashArray: '6, 10',
+                opacity: 0.9
+            }).addTo(map);
+            currentRoutePolylines.push(navLine);
+
+            const distKm = getDistance(userLat, userLon, station.lat, station.lon);
+            let distText = `${Math.round(distKm * 1000)} 公尺`;
+            if (distKm >= 1.0) {
+                distText = `${distKm} 公里`;
+            }
+            
+            const walkTimeMinutes = Math.max(1, Math.round(distKm * 15));
+
+            const bounds = L.latLngBounds([[userLat, userLon], [station.lat, station.lon]]);
+            map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16 });
+
+            const navContainer = document.getElementById('navigation-panel-container');
+            if (navContainer) {
+                navContainer.innerHTML = `
+                    <div class="navigation-panel">
+                        <div class="fw-bold text-warning mb-2"><i class="fa-solid fa-person-hiking me-1"></i> 🚶 步行導航引導中</div>
+                        <div class="nav-metric-row">
+                            <div class="nav-metric-item"><i class="fa-solid fa-route text-info"></i> 距離：${distText}</div>
+                            <div class="nav-metric-item"><i class="fa-solid fa-clock text-info"></i> 時間：約 ${walkTimeMinutes} 分鐘</div>
+                        </div>
+                        <div class="text-muted small mb-2" style="font-size: 0.75rem;">
+                            依黃色虛線指示前行即可抵達 **${station.station_name}**，無須開啟外部地圖。
+                        </div>
+                        <a href="https://www.google.com/maps/dir/?api=1&origin=${userLat},${userLon}&destination=${station.lat},${station.lon}&travelmode=walking" 
+                           target="_blank" class="btn btn-outline-info btn-sm w-100 py-1" style="font-size:0.75rem; border-radius: 8px;">
+                            <i class="fa-solid fa-map-location-dot me-1"></i>開啟外部 Google Maps 行動導航
+                        </a>
+                    </div>
+                `;
+            }
+            
+            showPremiumToast("導航已啟用", `已為您規劃至 ${station.station_name} 的步行路徑！`, "success");
+        },
+        (error) => {
+            showPremiumToast("定位失敗", "無法取得您的精準位置，請確認 GPS 開啟與權限允許。", "danger");
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+    );
+}
+
+function getDistance(lat1, lon1, lat2, lon2) {
+    const R = 6371.0;
+    const dlat = (lat2 - lat1) * Math.PI / 180;
+    const dlon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dlat / 2) * Math.sin(dlat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dlon / 2) * Math.sin(dlon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c * 100) / 100;
 }
