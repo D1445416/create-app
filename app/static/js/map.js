@@ -1005,7 +1005,7 @@ function handleStationSearch() {
         }
 
         html += `
-            <div class="search-result-item" onclick="selectSearchedStation('${station.station_id}')">
+            <div class="search-result-item" onmousedown="selectSearchedStation('${station.station_id}')">
                 <span class="search-result-name">${station.station_name}</span>
                 <span class="search-result-type badge ${typeClass}">${typeText}</span>
             </div>
@@ -1065,7 +1065,7 @@ function handleRouteSearch(role) {
         }
 
         html += `
-            <div class="search-result-item" onclick="selectRouteStation('${role}', '${station.station_id}', '${station.station_name}', '${typeText}')">
+            <div class="search-result-item" onmousedown="selectRouteStation('${role}', '${station.station_id}', '${station.station_name}', '${typeText}')">
                 <span class="search-result-name">${station.station_name}</span>
                 <span class="search-result-type badge ${typeClass}">${typeText}</span>
             </div>
