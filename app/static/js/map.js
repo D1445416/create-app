@@ -558,30 +558,42 @@ function drawRouteOnMap(plan) {
     let dashStyle = null;
 
     if (planId === 'plan_mrt') {
-        // 捷運方案為多色分段拼接：
-        // 步行段: Dotted Gray, 捷運段: Purple, 公車段: Blue
-        const seg1 = L.polyline([path[0], path[1]], { color: '#94a3b8', weight: 4, dashArray: '5, 8' });
-        const seg2 = L.polyline([path[1], path[2]], { color: '#a855f7', weight: 6 });
-        const seg3 = L.polyline([path[2], path[3]], { color: '#0ea5e9', weight: 5 });
-        
-        seg1.addTo(map);
-        seg2.addTo(map);
-        seg3.addTo(map);
-        
-        currentRoutePolylines.push(seg1, seg2, seg3);
+        if (path.length >= 4) {
+            // 長途捷運方案為多色分段拼接：
+            // 步行段: Dotted Gray, 捷運段: Purple, 公車段: Blue
+            const seg1 = L.polyline([path[0], path[1]], { color: '#94a3b8', weight: 4, dashArray: '5, 8' });
+            const seg2 = L.polyline([path[1], path[2]], { color: '#a855f7', weight: 6 });
+            const seg3 = L.polyline([path[2], path[3]], { color: '#0ea5e9', weight: 5 });
+            
+            seg1.addTo(map);
+            seg2.addTo(map);
+            seg3.addTo(map);
+            
+            currentRoutePolylines.push(seg1, seg2, seg3);
+        } else {
+            // 短途步行方案，直接畫一條灰色的步行虛線
+            const line = L.polyline(path, { color: '#94a3b8', weight: 4, dashArray: '5, 8' }).addTo(map);
+            currentRoutePolylines.push(line);
+        }
     } else if (planId === 'plan_bus') {
         // 公車方案為整條深藍色發光線
         const line = L.polyline(path, { color: '#0ea5e9', weight: 5, opacity: 0.95 }).addTo(map);
         currentRoutePolylines.push(line);
     } else if (planId === 'plan_green') {
-        // 綠能方案為 YouBike橘色線 + 步行虛線
-        const seg1 = L.polyline([path[0], path[1]], { color: '#f59e0b', weight: 5 });
-        const seg2 = L.polyline([path[1], path[2]], { color: '#94a3b8', weight: 4, dashArray: '5, 8' });
-        
-        seg1.addTo(map);
-        seg2.addTo(map);
-        
-        currentRoutePolylines.push(seg1, seg2);
+        if (path.length >= 3) {
+            // 綠能方案為 YouBike橘色線 + 步行虛線
+            const seg1 = L.polyline([path[0], path[1]], { color: '#f59e0b', weight: 5 });
+            const seg2 = L.polyline([path[1], path[2]], { color: '#94a3b8', weight: 4, dashArray: '5, 8' });
+            
+            seg1.addTo(map);
+            seg2.addTo(map);
+            
+            currentRoutePolylines.push(seg1, seg2);
+        } else {
+            // 短途 YouBike 直達，畫整條亮橘色實線
+            const line = L.polyline(path, { color: '#f59e0b', weight: 5 }).addTo(map);
+            currentRoutePolylines.push(line);
+        }
     }
 
     // 3. 自動縮放地圖至能完美包覆整條線路與站點 (地圖適配性)
