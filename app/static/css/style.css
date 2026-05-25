@@ -994,6 +994,7 @@ body {
     flex-direction: column;
     gap: 2px;
     padding: 6px;
+    z-index: 1050;
     animation: dropdownSlideIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
