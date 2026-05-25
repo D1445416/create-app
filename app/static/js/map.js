@@ -974,3 +974,69 @@ function getDistance(lat1, lon1, lat2, lon2) {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return Math.round(R * c * 100) / 100;
 }
+
+// ==========================================
+// 9. 站點即時搜尋與地圖聯動
+// ==========================================
+function handleStationSearch() {
+    const query = document.getElementById('station-search-input').value.trim().toLowerCase();
+    const resultsContainer = document.getElementById('search-results-list');
+    const clearBtn = document.getElementById('clear-search-btn');
+
+    if (!query) {
+        resultsContainer.style.display = 'none';
+        clearBtn.style.display = 'none';
+        return;
+    }
+
+    clearBtn.style.display = 'block';
+
+    // 進行模糊比對。allStations 在載入時已被加載
+    const matched = allStations.filter(station => {
+        return station.station_name.toLowerCase().includes(query) || 
+               station.transport_type.toLowerCase().includes(query);
+    });
+
+    if (matched.length === 0) {
+        resultsContainer.innerHTML = '<div class="text-center text-muted small py-3">查無符合的站點</div>';
+        resultsContainer.style.display = 'flex';
+        return;
+    }
+
+    let html = '';
+    matched.slice(0, 10).forEach(station => {
+        let typeText = '公車';
+        let typeClass = 'bg-info text-dark';
+        if (station.transport_type === 'mrt') {
+            typeText = '捷運';
+            typeClass = 'bg-secondary text-white';
+        } else if (station.transport_type === 'transfer') {
+            typeText = '轉乘樞紐';
+            typeClass = 'bg-success text-white';
+        }
+
+        html += `
+            <div class="search-result-item" onclick="selectSearchedStation('${station.station_id}')">
+                <span class="search-result-name">${station.station_name}</span>
+                <span class="search-result-type badge ${typeClass}">${typeText}</span>
+            </div>
+        `;
+    });
+
+    resultsContainer.innerHTML = html;
+    resultsContainer.style.display = 'flex';
+}
+
+function selectSearchedStation(stationId) {
+    // 隱藏搜尋下拉結果
+    document.getElementById('search-results-list').style.display = 'none';
+    
+    // 觸發站點選擇，地圖平滑飛航並載入動態
+    selectStation(stationId);
+}
+
+function clearSearchInput() {
+    document.getElementById('station-search-input').value = '';
+    document.getElementById('search-results-list').style.display = 'none';
+    document.getElementById('clear-search-btn').style.display = 'none';
+}
