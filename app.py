@@ -1,6 +1,8 @@
 import os
 from dotenv import load_dotenv
 from app import create_app
+#　pip install flask
+#　pip install python-dotenv
 
 # 載入 .env 檔案的環境變數
 load_dotenv()
