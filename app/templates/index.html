@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+
+{% block title %}台中大眾運輸交通整合系統 - TransitGO 首頁{% endblock %}
+
+{% block content %}
+<div class="row g-4 justify-content-center">
+    <!-- Main Route Planning Card -->
+    <div class="col-lg-8">
+        <div class="glass-card p-4 p-md-5 mb-4 position-relative overflow-hidden">
+            <!-- Glow background decor -->
+            <div class="position-absolute top-0 end-0 translate-middle-y rounded-circle bg-primary opacity-10" style="width: 200px; height: 200px; filter: blur(50px);"></div>
+            
+            <div class="d-flex align-items-center mb-4">
+                <div class="p-3 bg-accent-glow rounded-3 text-accent me-3" style="background: rgba(0,242,254,0.1);">
+                    <i class="fa-solid fa-compass-drafting fs-3"></i>
+                </div>
+                <div>
+                    <h2 class="mb-1 text-accent-gradient">台中大眾運輸路線規劃</h2>
+                    <p class="text-muted mb-0">輸入起點與終點，一鍵計算捷運、公車、YouBike 與最優轉乘方案</p>
+                </div>
+            </div>
+
+            <form action="{{ url_for('transit.search_route') }}" method="POST" class="needs-validation" novalidate>
+                <div class="mb-4">
+                    <label for="start_point" class="form-label font-semibold text-light">起點 (Start Point)</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-glass border-glass-subtle text-accent"><i class="fa-solid fa-location-dot"></i></span>
+                        <input type="text" class="form-control form-control-premium" id="start_point" name="start_point" placeholder="輸入起點名稱或地址" required>
+                        <button class="btn btn-outline-accent" type="button" onclick="getCurrentLocation('start_point', null, 'start_status')">
+                            <i class="fa-solid fa-crosshairs me-1"></i> 我的位置
+                        </button>
+                    </div>
+                    <div id="start_status"></div>
+                </div>
+
+                <div class="mb-4">
+                    <label for="end_point" class="form-label font-semibold text-light">終點 (End Point)</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-glass border-glass-subtle text-danger"><i class="fa-solid fa-location-crosshairs"></i></span>
+                        <input type="text" class="form-control form-control-premium" id="end_point" name="end_point" placeholder="輸入終點名稱或地址" required>
+                    </div>
+                </div>
+
+                <div class="d-grid mt-4">
+                    <button type="submit" class="btn btn-accent btn-lg py-3 rounded-pill">
+                        <i class="fa-solid fa-magnifying-glass me-2"></i> 開始規劃最佳路線
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Right Column: Quick Links & Dynamic Stats -->
+    <div class="col-lg-4">
+        <!-- Quick Arrival Finder -->
+        <div class="glass-card p-4 mb-4">
+            <h4 class="mb-3 text-accent"><i class="fa-solid fa-clock-rotate-left me-2"></i>即時公車到站查詢</h4>
+            <p class="text-light-muted small">快速查看指定公車路線或站點的預估抵達時間。</p>
+            <form action="{{ url_for('transit.show_arrival') }}" method="GET" class="d-flex gap-2">
+                <input type="text" class="form-control form-control-premium" name="route_name" placeholder="例如: 300, 310" required>
+                <button type="submit" class="btn btn-outline-accent px-3"><i class="fa-solid fa-chevron-right"></i></button>
+            </form>
+        </div>
+
+        <!-- YouBike & Stations Map Link -->
+        <div class="glass-card p-4 mb-4 text-center bg-glass border-accent-glow">
+            <h4 class="mb-2 text-accent-gradient"><i class="fa-solid fa-map-location-dot me-2"></i>大眾運輸即時地圖</h4>
+            <p class="text-light-muted small mb-3">查看周邊捷運站、公車站牌以及 YouBike 租借站的即時狀況與位置。</p>
+            <a href="{{ url_for('main.transit_map') }}" class="btn btn-accent rounded-pill px-4"><i class="fa-solid fa-eye me-2"></i>開啟地圖檢視</a>
+        </div>
+    </div>
+</div>
+
+<!-- History & Favorites section, only visible or populated if user is logged in -->
+{% if session.get('user_id') %}
+<div class="row g-4 mt-2 justify-content-center" id="favorites">
+    <!-- Left: Favorite routes -->
+    <div class="col-md-6">
+        <div class="glass-card p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="text-accent mb-0"><i class="fa-regular fa-star me-2 text-warning"></i>我的常用路線</h4>
+                <span class="badge bg-glass border-glass-subtle text-accent px-2.5 py-1.5">{{ favorite_list|length }} 筆記錄</span>
+            </div>
+            
+            {% if favorite_list %}
+                <div class="list-group list-group-flush bg-transparent">
+                    {% for fav in favorite_list %}
+                        <div class="list-group-item bg-transparent border-glass-subtle text-light py-3 px-1 d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <div class="p-2 bg-glass border-glass-subtle rounded-3 text-warning me-3">
+                                    <i class="fa-solid fa-star"></i>
+                                </div>
+                                <div>
+                                    <div class="font-semibold">{{ fav.start_point }} <i class="fa-solid fa-arrow-right mx-1 text-muted fs-7"></i> {{ fav.end_point }}</div>
+                                    <div class="text-muted small mt-1"><i class="fa-regular fa-clock me-1"></i>{{ fav.created_at }}</div>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <!-- Re-search Form -->
+                                <form action="{{ url_for('transit.search_route') }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="start_point" value="{{ fav.start_point }}">
+                                    <input type="hidden" name="end_point" value="{{ fav.end_point }}">
+                                    <button type="submit" class="btn btn-outline-accent btn-sm rounded-pill px-2.5" title="重新搜尋">
+                                        <i class="fa-solid fa-rotate"></i>
+                                    </button>
+                                </form>
+                                <!-- Delete Favorite -->
+                                <form action="{{ url_for('transit.delete_history', history_id=fav.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-2.5" title="刪除收藏" onclick="return confirm('確定要移除此常用路線？')">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fa-regular fa-star fs-1 mb-3 opacity-30"></i>
+                    <p class="mb-0">尚無常用最愛路線</p>
+                    <p class="small text-muted mt-1">搜尋路線並在結果頁點擊星號即可收藏！</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right: Search history -->
+    <div class="col-md-6">
+        <div class="glass-card p-4 h-100">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="text-accent mb-0"><i class="fa-solid fa-history me-2 text-info"></i>近期搜尋歷史</h4>
+                <span class="badge bg-glass border-glass-subtle text-accent px-2.5 py-1.5">{{ history_list|length }} 筆記錄</span>
+            </div>
+            
+            {% if history_list %}
+                <div class="list-group list-group-flush bg-transparent">
+                    {% for hist in history_list %}
+                        <div class="list-group-item bg-transparent border-glass-subtle text-light py-3 px-1 d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <div class="p-2 bg-glass border-glass-subtle rounded-3 text-info me-3">
+                                    <i class="fa-solid fa-clock-rotate-left"></i>
+                                </div>
+                                <div>
+                                    <div class="font-semibold">{{ hist.start_point }} <i class="fa-solid fa-arrow-right mx-1 text-muted fs-7"></i> {{ hist.end_point }}</div>
+                                    <div class="text-muted small mt-1"><i class="fa-regular fa-clock me-1"></i>{{ hist.created_at }}</div>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 align-items-center">
+                                <!-- Favorite Action toggle -->
+                                {% if not hist.is_favorite %}
+                                    <form action="{{ url_for('transit.add_favorite') }}" method="POST" class="d-inline">
+                                        <input type="hidden" name="start_point" value="{{ hist.start_point }}">
+                                        <input type="hidden" name="end_point" value="{{ hist.end_point }}">
+                                        {% if hist.details %}
+                                            <input type="hidden" name="details" value="{{ hist.details }}">
+                                        {% endif %}
+                                        <button type="submit" class="btn btn-link p-0 text-muted star-fav" title="加入最愛">
+                                            <i class="fa-regular fa-star"></i>
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span class="text-warning star-fav active" title="已收藏"><i class="fa-solid fa-star"></i></span>
+                                {% endif %}
+
+                                <!-- Re-search -->
+                                <form action="{{ url_for('transit.search_route') }}" method="POST" class="d-inline">
+                                    <input type="hidden" name="start_point" value="{{ hist.start_point }}">
+                                    <input type="hidden" name="end_point" value="{{ hist.end_point }}">
+                                    <button type="submit" class="btn btn-outline-accent btn-sm rounded-pill px-2.5 ms-2" title="重新搜尋">
+                                        <i class="fa-solid fa-rotate"></i>
+                                    </button>
+                                </form>
+
+                                <!-- Delete -->
+                                <form action="{{ url_for('transit.delete_history', history_id=hist.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-2.5" title="刪除歷史" onclick="return confirm('確定要刪除此搜尋歷史？')">
+                                        <i class="fa-solid fa-trash-can"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fa-solid fa-history fs-1 mb-3 opacity-30"></i>
+                    <p class="mb-0">尚無搜尋歷史紀錄</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- Invitation to login for history storage -->
+<div class="row justify-content-center mt-5">
+    <div class="col-lg-8">
+        <div class="glass-card p-4 text-center bg-glass border-glass-subtle">
+            <h4 class="mb-2 text-light"><i class="fa-solid fa-key text-accent me-2"></i>登入以儲存您的個人常用路線與搜尋歷史</h4>
+            <p class="text-muted small mb-3">登入帳號後，您可以在首頁直接查看近期搜尋紀錄，並將每天通勤的路線標記為最愛，一鍵快速搜尋最新到站狀態！</p>
+            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-accent rounded-pill px-4"><i class="fa-solid fa-right-to-bracket me-2"></i>前往登入 / 註冊帳號</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
