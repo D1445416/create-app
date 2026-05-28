@@ -49,23 +49,37 @@ def calculate_trip():
         # 計算各段交通工具的費率
         fare_result = calculate_total_fare(segments)
         
-        # 將結果合併回傳給前端
+        # 將結果合併回傳給前端，加入詳細的分項明細
         response = {
             "status": "success",
             "data": {
-                "total_minutes": time_result["total_minutes"],
-                "total_fare": fare_result["total_fare"],
-                "time_details": time_result["details"],
-                "fare_details": fare_result["details"]
+                "summary": {
+                    "total_minutes": time_result["total_minutes"],
+                    "total_fare": fare_result["total_fare"]
+                },
+                "fare_breakdown": {
+                    "bus_fare": fare_result["bus_fare"],
+                    "mrt_fare": fare_result["mrt_fare"],
+                    "youbike_fare": fare_result["youbike_fare"],
+                    "transfer_discount": fare_result["total_discount"]
+                },
+                "time_breakdown": {
+                    "total_ride_time": time_result["total_ride_time"],
+                    "total_walk_time": time_result["total_walk_time"],
+                    "total_wait_time": time_result["total_wait_time"]
+                },
+                "fare_details": fare_result["details"],
+                "time_details": time_result["details"]
             }
         }
         
         return jsonify(response), 200
         
     except Exception as e:
+        # 捕捉無法預期的系統錯誤
         return jsonify({
             "status": "error",
-            "message": str(e)
+            "message": f"Internal Server Error: {str(e)}"
         }), 500
 
 if __name__ == '__main__':
