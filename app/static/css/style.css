@@ -1023,8 +1023,1145 @@ body {
     color: var(--text-main);
 }
 
+.search-result-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-main);
+}
+
 .search-result-type {
     font-size: 0.7rem;
     padding: 2px 6px;
     border-radius: 4px;
 }
+
+/* ================================================
+   F-01 一站式查詢平台 — 完整樣式
+   ================================================ */
+
+/* Page Layout */
+#search-page {
+    min-height: 100vh;
+    overflow-y: auto;
+    background: var(--bg-main);
+}
+
+/* ---- Hero 搜尋區塊 ---- */
+.search-hero {
+    position: relative;
+    min-height: calc(100vh - 61px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    padding: 40px 20px;
+}
+
+.search-hero-bg {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(14, 165, 233, 0.15) 0%, transparent 70%),
+        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(168, 85, 247, 0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 40% at 10% 60%, rgba(16, 185, 129, 0.08) 0%, transparent 50%);
+    animation: heroBgShift 8s ease-in-out infinite alternate;
+}
+
+@keyframes heroBgShift {
+    0% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.search-hero-content {
+    position: relative;
+    z-index: 2;
+    max-width: 800px;
+    width: 100%;
+    text-align: center;
+}
+
+.search-hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(14, 165, 233, 0.12);
+    border: 1px solid rgba(14, 165, 233, 0.25);
+    border-radius: 30px;
+    padding: 6px 16px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-cyan);
+    margin-bottom: 20px;
+    letter-spacing: 0.5px;
+}
+
+.search-hero-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1.2;
+    color: var(--text-main);
+    margin-bottom: 16px;
+    letter-spacing: -0.5px;
+}
+
+.gradient-text {
+    background: linear-gradient(135deg, #0ea5e9, #a855f7, #10b981);
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: gradientFlow 4s ease infinite;
+}
+
+@keyframes gradientFlow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.search-hero-subtitle {
+    font-size: 1rem;
+    color: var(--text-muted);
+    margin-bottom: 36px;
+    line-height: 1.6;
+}
+
+/* ---- 查詢主卡片 ---- */
+.query-card {
+    background: rgba(19, 28, 48, 0.75);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 24px;
+    padding: 28px 32px;
+    box-shadow:
+        0 20px 60px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    text-align: left;
+}
+
+/* ---- 起訖點輸入區 ---- */
+.query-inputs {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.query-input-group {
+    flex: 1;
+    position: relative;
+}
+
+.query-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.query-input-wrapper {
+    position: relative;
+}
+
+.query-input {
+    width: 100%;
+    background: rgba(10, 16, 32, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 12px 42px 12px 16px;
+    color: var(--text-main);
+    font-family: var(--font-outfit);
+    font-size: 0.95rem;
+    font-weight: 500;
+    outline: none;
+    transition: all 0.3s ease;
+    box-sizing: border-box;
+}
+
+.query-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.15);
+    background: rgba(10, 16, 32, 0.8);
+}
+
+.query-input::placeholder {
+    color: rgba(148, 163, 184, 0.5);
+}
+
+.query-input-icon {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    pointer-events: none;
+}
+
+/* ---- Autocomplete 下拉 ---- */
+.autocomplete-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: rgba(15, 23, 42, 0.97);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    z-index: 9999;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+.ac-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.ac-item:last-child { border-bottom: none; }
+
+.ac-item:hover {
+    background: rgba(14, 165, 233, 0.1);
+}
+
+.ac-icon { font-size: 1rem; }
+
+.ac-name {
+    flex: 1;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-main);
+}
+
+.ac-type {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 2px 8px;
+    border-radius: 6px;
+}
+
+/* ---- 交換按鈕 ---- */
+.swap-btn {
+    background: rgba(14, 165, 233, 0.12);
+    border: 1px solid rgba(14, 165, 233, 0.25);
+    border-radius: 12px;
+    width: 44px;
+    height: 44px;
+    color: var(--text-cyan);
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    flex-shrink: 0;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.swap-btn:hover {
+    background: var(--color-primary);
+    color: white;
+    transform: scale(1.05);
+}
+
+.swap-btn.spinning i {
+    animation: spinOnce 0.5s ease;
+}
+
+@keyframes spinOnce {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(180deg); }
+}
+
+/* ---- 篩選選項 ---- */
+.query-filters {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.filter-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.3px;
+}
+
+.transport-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.chip {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-family: var(--font-outfit);
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.chip:hover {
+    border-color: var(--color-primary);
+    color: var(--text-cyan);
+}
+
+.chip.active {
+    background: rgba(14, 165, 233, 0.15);
+    border-color: var(--color-primary);
+    color: var(--text-cyan);
+    box-shadow: 0 0 8px rgba(14, 165, 233, 0.2);
+}
+
+.time-select-wrapper {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* ---- 查詢主按鈕 ---- */
+.btn-search-main {
+    width: 100%;
+    background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 50%, #a855f7 100%);
+    background-size: 200% 200%;
+    border: none;
+    border-radius: 14px;
+    padding: 15px 24px;
+    font-family: var(--font-outfit);
+    font-size: 1rem;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
+    animation: gradientShift 3s ease infinite;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+.btn-search-main:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(99, 102, 241, 0.5);
+}
+
+.btn-search-main:active { transform: translateY(0); }
+
+.btn-search-main:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.btn-shimmer {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 60%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+    animation: shimmer 2.5s infinite;
+}
+
+@keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 200%; }
+}
+
+/* ================================================
+   查詢結果區
+   ================================================ */
+.search-results-section {
+    min-height: calc(100vh - 61px);
+    padding: 40px 24px;
+    background: var(--bg-main);
+}
+
+.results-container {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.results-title {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin: 0;
+}
+
+.results-subtitle {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin: 4px 0 0;
+}
+
+.btn-back-search {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 8px 16px;
+    color: var(--text-muted);
+    font-family: var(--font-outfit);
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-back-search:hover {
+    color: var(--text-cyan);
+    border-color: var(--color-primary);
+}
+
+/* 行程摘要橫幅 */
+.trip-summary-bar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(14, 165, 233, 0.06);
+    border: 1px solid rgba(14, 165, 233, 0.15);
+    border-radius: 14px;
+    padding: 14px 20px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.trip-point {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-main);
+}
+
+.trip-arrow {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-muted);
+    flex: 1;
+}
+
+.trip-arrow-line {
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, rgba(14,165,233,0.4), rgba(168,85,247,0.4));
+    min-width: 30px;
+}
+
+/* 路線方案卡片 */
+.plan-cards-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.result-plan-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    padding: 22px 24px;
+    position: relative;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.result-plan-card:hover {
+    border-color: rgba(56, 189, 248, 0.35);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.result-plan-card.recommended {
+    border-color: rgba(14, 165, 233, 0.4);
+    background: rgba(14, 165, 233, 0.05);
+    box-shadow: 0 0 20px rgba(14, 165, 233, 0.1);
+}
+
+.recommended-badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: linear-gradient(135deg, #0ea5e9, #6366f1);
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 5px 14px 5px 12px;
+    border-radius: 0 18px 0 14px;
+}
+
+.result-plan-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+}
+
+.result-plan-icon {
+    font-size: 2.2rem;
+    line-height: 1;
+}
+
+.result-plan-name {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.result-plan-desc {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.result-plan-stats {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.result-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+}
+
+.result-stat-value {
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.result-stat-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.result-stat-divider {
+    width: 1px;
+    height: 36px;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* 分段 Timeline */
+.result-segs-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-left: 2px dashed rgba(255, 255, 255, 0.1);
+    margin-left: 8px;
+    padding-left: 16px;
+    margin-bottom: 16px;
+}
+
+.result-seg-item {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.result-seg-dot {
+    position: absolute;
+    left: -23px;
+    top: 4px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid var(--bg-main);
+    flex-shrink: 0;
+}
+
+.result-seg-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.result-seg-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.result-seg-sub {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+}
+
+/* 在地圖上查看按鈕 */
+.result-map-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    padding: 10px;
+    background: rgba(56, 189, 248, 0.08);
+    border: 1px solid rgba(56, 189, 248, 0.2);
+    border-radius: 10px;
+    color: var(--text-cyan);
+    font-family: var(--font-outfit);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.result-map-btn:hover {
+    background: var(--color-primary);
+    color: white;
+}
+
+/* ================================================
+   資訊面板區
+   ================================================ */
+.info-panels-section {
+    padding: 40px 24px;
+    background: rgba(6, 9, 19, 0.8);
+    border-top: 1px solid var(--border-color);
+}
+
+.info-panels-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+.info-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 24px;
+    backdrop-filter: blur(12px);
+}
+
+.info-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.info-panel-header h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-main);
+}
+
+.info-panel-badge {
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(14, 165, 233, 0.12);
+    color: var(--text-cyan);
+    border: 1px solid rgba(14, 165, 233, 0.2);
+}
+
+/* 票價試算 */
+.fare-calc-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.fare-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    transition: background 0.2s;
+}
+
+.fare-item:hover { background: rgba(255, 255, 255, 0.04); }
+
+.fare-item-icon {
+    font-size: 1.4rem;
+    width: 36px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.fare-item-info {
+    flex: 1;
+}
+
+.fare-item-name {
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: var(--text-main);
+}
+
+.fare-item-rule {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.fare-item-calc {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.fare-input {
+    width: 90px;
+    background: rgba(10, 16, 32, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 6px 10px;
+    color: var(--text-main);
+    font-family: var(--font-outfit);
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s;
+    text-align: center;
+}
+
+.fare-input:focus { border-color: var(--color-primary); }
+
+.fare-result {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    min-width: 70px;
+    text-align: right;
+}
+
+.transfer-discount-item {
+    background: rgba(16, 185, 129, 0.04);
+    border-color: rgba(16, 185, 129, 0.15) !important;
+}
+
+/* 班次快查 */
+.timetable-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    padding: 4px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+}
+
+.tt-tab {
+    flex: 1;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 6px;
+    font-family: var(--font-outfit);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.tt-tab:hover { color: var(--text-main); }
+
+.tt-tab.active {
+    background: rgba(14, 165, 233, 0.15);
+    color: var(--text-cyan);
+}
+
+.tt-content {
+    display: none;
+}
+
+.tt-content.active {
+    display: block;
+}
+
+.tt-search-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.tt-search-btn {
+    background: var(--color-primary);
+    border: none;
+    border-radius: 10px;
+    width: 42px;
+    height: 42px;
+    color: white;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.tt-search-btn:hover { background: #38bdf8; }
+
+.tt-results {
+    min-height: 60px;
+}
+
+.tt-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    text-align: center;
+    gap: 8px;
+}
+
+.tt-station-name {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-cyan);
+    margin-bottom: 8px;
+}
+
+/* 捷運站點列表 */
+.mrt-stations-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.mrt-station-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(168, 85, 247, 0.06);
+    border: 1px solid rgba(168, 85, 247, 0.12);
+    border-radius: 8px;
+    padding: 7px 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: var(--font-outfit);
+    color: var(--text-main);
+    width: 100%;
+    text-align: left;
+}
+
+.mrt-station-btn:hover {
+    background: rgba(168, 85, 247, 0.15);
+    border-color: var(--color-secondary);
+    color: #c084fc;
+}
+
+.mrt-station-num {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #c084fc;
+    background: rgba(168, 85, 247, 0.15);
+    border-radius: 4px;
+    padding: 1px 6px;
+    min-width: 22px;
+    text-align: center;
+}
+
+.mrt-station-name-btn {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+/* 台鐵/高鐵資訊 */
+.train-info-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.train-info-card {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.train-info-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.train-badge {
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 6px;
+}
+
+.tra-badge {
+    background: rgba(14, 165, 233, 0.15);
+    color: #38bdf8;
+}
+
+.hsr-badge {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+}
+
+.train-station {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-main);
+}
+
+.train-info-body {
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.train-schedule-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.85rem;
+}
+
+.train-name { font-weight: 700; color: var(--text-main); min-width: 60px; }
+.train-dest { color: var(--text-muted); flex: 1; }
+
+.train-info-note {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.link-info {
+    color: var(--text-cyan);
+    text-decoration: none;
+}
+
+.link-info:hover { text-decoration: underline; }
+
+.transfer-tip {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: rgba(245, 158, 11, 0.06);
+    border: 1px solid rgba(245, 158, 11, 0.15);
+    border-radius: 10px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+/* ================================================
+   大眾運輸總覽橫幅
+   ================================================ */
+.transport-overview-section {
+    padding: 60px 24px;
+    background: var(--bg-main);
+    border-top: 1px solid var(--border-color);
+}
+
+.transport-overview-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.section-title {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 8px;
+}
+
+.section-subtitle {
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    margin-bottom: 36px;
+}
+
+.transport-cards-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 16px;
+}
+
+.transport-overview-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    padding: 22px 18px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: default;
+}
+
+.transport-overview-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.toc-icon {
+    font-size: 2.4rem;
+    margin-bottom: 12px;
+    display: block;
+}
+
+.bus-glow { filter: drop-shadow(0 0 8px rgba(14, 165, 233, 0.5)); }
+.mrt-glow { filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.5)); }
+.train-glow { filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.4)); }
+.hsr-glow { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.4)); }
+.youbike-glow { filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.5)); }
+
+.transport-overview-card h4 {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 8px;
+}
+
+.transport-overview-card p {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.toc-tag {
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    background: rgba(14, 165, 233, 0.1);
+    color: var(--text-cyan);
+    border: 1px solid rgba(14, 165, 233, 0.2);
+}
+
+/* ================================================
+   錯誤 Toast
+   ================================================ */
+.search-error-toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: 12px;
+    padding: 12px 20px;
+    color: #f87171;
+    font-weight: 600;
+    font-size: 0.9rem;
+    z-index: 99999;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+    opacity: 0;
+    backdrop-filter: blur(12px);
+    white-space: nowrap;
+}
+
+.search-error-toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+}
+
+/* ================================================
+   Search 頁面響應式
+   ================================================ */
+@media (max-width: 768px) {
+    .query-inputs {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .swap-btn {
+        align-self: center;
+        transform: rotate(90deg);
+        width: 36px;
+        height: 36px;
+    }
+
+    .info-panels-container {
+        grid-template-columns: 1fr;
+    }
+
+    .query-card {
+        padding: 20px 16px;
+    }
+
+    .query-filters {
+        flex-direction: column;
+        gap: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .search-hero-title {
+        font-size: 1.8rem;
+    }
+
+    .transport-cards-row {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+/* Search 頁面 body 要能 scroll */
+#search-page ~ * { overflow: visible; }

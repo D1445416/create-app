@@ -1,0 +1,803 @@
+{% extends "base.html" %}
+
+{% block title %}一站式交通查詢 — 台中大眾運輸整合 APP{% endblock %}
+
+{% block content %}
+<div id="search-page">
+
+    <!-- ===================== HERO 查詢區塊 ===================== -->
+    <section class="search-hero">
+        <div class="search-hero-bg"></div>
+        <div class="search-hero-content">
+            <div class="search-hero-badge">
+                <span class="pulse-dot"></span>
+                <span>F-01 一站式查詢平台</span>
+            </div>
+            <h1 class="search-hero-title">
+                整合台中<br>
+                <span class="gradient-text">大眾運輸查詢</span>
+            </h1>
+            <p class="search-hero-subtitle">公車・捷運・台鐵・高鐵・YouBike 一次搞定，輸入起點與終點即可獲得最佳路線方案</p>
+
+            <!-- 查詢主表單 -->
+            <div class="query-card" id="query-form-card">
+                <!-- 起訖點輸入 -->
+                <div class="query-inputs">
+                    <div class="query-input-group" id="start-group">
+                        <label class="query-label">
+                            <i class="fa-solid fa-circle-play text-success"></i>
+                            出發地點
+                        </label>
+                        <div class="query-input-wrapper">
+                            <input type="text" id="search-start-input" class="query-input"
+                                placeholder="輸入出發站點名稱..."
+                                oninput="handleSearchAutocomplete('start')"
+                                onfocus="handleSearchAutocomplete('start')"
+                                autocomplete="off">
+                            <i class="fa-solid fa-magnifying-glass query-input-icon"></i>
+                        </div>
+                        <div id="start-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
+                        <input type="hidden" id="search-start-id">
+                    </div>
+
+                    <button class="swap-btn" id="swap-btn" onclick="swapStations()" title="交換起訖點">
+                        <i class="fa-solid fa-arrow-right-arrow-left"></i>
+                    </button>
+
+                    <div class="query-input-group" id="end-group">
+                        <label class="query-label">
+                            <i class="fa-solid fa-circle-stop text-danger"></i>
+                            目的地點
+                        </label>
+                        <div class="query-input-wrapper">
+                            <input type="text" id="search-end-input" class="query-input"
+                                placeholder="輸入目的站點名稱..."
+                                oninput="handleSearchAutocomplete('end')"
+                                onfocus="handleSearchAutocomplete('end')"
+                                autocomplete="off">
+                            <i class="fa-solid fa-magnifying-glass query-input-icon"></i>
+                        </div>
+                        <div id="end-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
+                        <input type="hidden" id="search-end-id">
+                    </div>
+                </div>
+
+                <!-- 篩選選項列 -->
+                <div class="query-filters">
+                    <div class="filter-group">
+                        <label class="filter-label"><i class="fa-solid fa-train me-1"></i>交通工具</label>
+                        <div class="transport-chips" id="transport-chips">
+                            <button class="chip active" data-type="all" onclick="toggleChip(this)">全部</button>
+                            <button class="chip" data-type="bus" onclick="toggleChip(this)">🚌 公車</button>
+                            <button class="chip" data-type="mrt" onclick="toggleChip(this)">🚇 捷運</button>
+                            <button class="chip" data-type="train" onclick="toggleChip(this)">🚆 台鐵</button>
+                            <button class="chip" data-type="hsr" onclick="toggleChip(this)">🚄 高鐵</button>
+                            <button class="chip" data-type="youbike" onclick="toggleChip(this)">🚲 YouBike</button>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label"><i class="fa-regular fa-clock me-1"></i>出發時間</label>
+                        <div class="time-select-wrapper">
+                            <select id="depart-time-mode" class="form-select-custom" onchange="toggleTimeInput()">
+                                <option value="now">立即出發</option>
+                                <option value="scheduled">指定時間</option>
+                            </select>
+                            <input type="datetime-local" id="scheduled-time" class="form-select-custom" style="display:none;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 查詢按鈕 -->
+                <button class="btn-search-main" id="btn-search-main" onclick="executeSearch()">
+                    <i class="fa-solid fa-location-arrow me-2"></i>
+                    查詢最佳路線
+                    <div class="btn-shimmer"></div>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== 查詢結果區 ===================== -->
+    <section class="search-results-section" id="results-section" style="display:none;">
+        <div class="results-container">
+
+            <!-- 結果標題列 -->
+            <div class="results-header">
+                <div>
+                    <h2 class="results-title">
+                        <i class="fa-solid fa-route text-info me-2"></i>
+                        路線方案
+                    </h2>
+                    <p class="results-subtitle" id="results-subtitle-text">共找到 3 個替代方案</p>
+                </div>
+                <button class="btn-back-search" onclick="backToSearch()">
+                    <i class="fa-solid fa-arrow-left me-1"></i> 重新查詢
+                </button>
+            </div>
+
+            <!-- 行程摘要橫幅 -->
+            <div class="trip-summary-bar" id="trip-summary-bar">
+                <div class="trip-point">
+                    <i class="fa-solid fa-circle-play text-success"></i>
+                    <span id="summary-start-name">--</span>
+                </div>
+                <div class="trip-arrow">
+                    <div class="trip-arrow-line"></div>
+                    <i class="fa-solid fa-chevron-right"></i>
+                </div>
+                <div class="trip-point">
+                    <i class="fa-solid fa-circle-stop text-danger"></i>
+                    <span id="summary-end-name">--</span>
+                </div>
+            </div>
+
+            <!-- 路線方案卡片列表 -->
+            <div class="plan-cards-grid" id="plan-cards-grid">
+                <!-- 動態注入 -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ===================== 資訊面板區 ===================== -->
+    <section class="info-panels-section">
+        <div class="info-panels-container">
+
+            <!-- 票價試算面板 -->
+            <div class="info-panel" id="fare-panel">
+                <div class="info-panel-header">
+                    <h3><i class="fa-solid fa-hand-holding-dollar text-success me-2"></i>票價試算</h3>
+                    <span class="info-panel-badge">快速查詢</span>
+                </div>
+                <div class="fare-calc-grid">
+                    <div class="fare-item">
+                        <div class="fare-item-icon bus-icon">🚌</div>
+                        <div class="fare-item-info">
+                            <div class="fare-item-name">台中市公車</div>
+                            <div class="fare-item-rule">雙十優惠 · 10km 內免費</div>
+                        </div>
+                        <div class="fare-item-calc">
+                            <input type="number" id="bus-distance-input" class="fare-input" placeholder="公里數" min="0" step="0.1" oninput="calcBusFare()">
+                            <div class="fare-result" id="bus-fare-result">— 元</div>
+                        </div>
+                    </div>
+                    <div class="fare-item">
+                        <div class="fare-item-icon mrt-icon">🚇</div>
+                        <div class="fare-item-info">
+                            <div class="fare-item-name">台中捷運綠線</div>
+                            <div class="fare-item-rule">起站 20 元 · 每站 +5 元</div>
+                        </div>
+                        <div class="fare-item-calc">
+                            <input type="number" id="mrt-stations-input" class="fare-input" placeholder="站數" min="1" step="1" oninput="calcMrtFare()">
+                            <div class="fare-result" id="mrt-fare-result">— 元</div>
+                        </div>
+                    </div>
+                    <div class="fare-item">
+                        <div class="fare-item-icon youbike-icon">🚲</div>
+                        <div class="fare-item-info">
+                            <div class="fare-item-name">YouBike 2.0</div>
+                            <div class="fare-item-rule">前 30 分 10 元 · 每半小時 10 元</div>
+                        </div>
+                        <div class="fare-item-calc">
+                            <input type="number" id="youbike-mins-input" class="fare-input" placeholder="分鐘數" min="1" step="5" oninput="calcYoubikeFare()">
+                            <div class="fare-result" id="youbike-fare-result">— 元</div>
+                        </div>
+                    </div>
+                    <div class="fare-item transfer-discount-item">
+                        <div class="fare-item-icon transfer-icon">🔄</div>
+                        <div class="fare-item-info">
+                            <div class="fare-item-name">捷運 ↔ 公車轉乘優惠</div>
+                            <div class="fare-item-rule">1 小時內轉乘 · 折抵 20 元</div>
+                        </div>
+                        <div class="fare-item-calc">
+                            <div class="fare-result text-success">折 20 元</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 班次快查面板 -->
+            <div class="info-panel" id="timetable-panel">
+                <div class="info-panel-header">
+                    <h3><i class="fa-solid fa-clock-rotate-left text-info me-2"></i>班次快查</h3>
+                    <span class="info-panel-badge">即時查詢</span>
+                </div>
+
+                <div class="timetable-tabs">
+                    <button class="tt-tab active" id="tt-tab-bus" onclick="switchTimetableTab('bus')">
+                        <i class="fa-solid fa-bus me-1"></i> 公車班次
+                    </button>
+                    <button class="tt-tab" id="tt-tab-mrt" onclick="switchTimetableTab('mrt')">
+                        <i class="fa-solid fa-subway me-1"></i> 捷運時刻
+                    </button>
+                    <button class="tt-tab" id="tt-tab-train" onclick="switchTimetableTab('train')">
+                        <i class="fa-solid fa-train me-1"></i> 台鐵 / 高鐵
+                    </button>
+                </div>
+
+                <!-- 公車班次查詢 -->
+                <div class="tt-content active" id="tt-content-bus">
+                    <div class="tt-search-row">
+                        <input type="text" id="bus-stop-search" class="query-input" placeholder="輸入公車站名 (e.g. 市政府)..."
+                            oninput="searchBusStop()">
+                        <button class="tt-search-btn" onclick="searchBusStop()">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </button>
+                    </div>
+                    <div id="bus-timetable-results" class="tt-results">
+                        <div class="tt-placeholder">
+                            <i class="fa-solid fa-bus text-secondary" style="font-size:2rem; opacity:0.3;"></i>
+                            <p>輸入站名查詢公車到站時間</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 捷運時刻查詢 -->
+                <div class="tt-content" id="tt-content-mrt">
+                    <div class="mrt-station-grid">
+                        <p class="text-muted small mb-3">台中捷運綠線 — 點選站點查看即時發車時刻</p>
+                        <div class="mrt-line-display" id="mrt-line-display">
+                            <!-- 動態注入台中捷運站點列表 -->
+                        </div>
+                    </div>
+                    <div id="mrt-timetable-results" class="tt-results mt-3" style="display:none;"></div>
+                </div>
+
+                <!-- 台鐵/高鐵資訊 -->
+                <div class="tt-content" id="tt-content-train">
+                    <div class="train-info-cards">
+                        <div class="train-info-card">
+                            <div class="train-info-header">
+                                <span class="train-badge tra-badge">🚆 台鐵</span>
+                                <span class="train-station">台中站</span>
+                            </div>
+                            <div class="train-info-body">
+                                <div class="train-schedule-row">
+                                    <span class="train-name">自強號</span>
+                                    <span class="train-dest">往台北</span>
+                                    <span class="train-time time-normal">每小時班次</span>
+                                </div>
+                                <div class="train-schedule-row">
+                                    <span class="train-name">區間車</span>
+                                    <span class="train-dest">往彰化/豐原</span>
+                                    <span class="train-time time-normal">每 15 分鐘</span>
+                                </div>
+                                <div class="train-info-note">
+                                    <i class="fa-solid fa-circle-info me-1 text-info"></i>
+                                    詳細時刻表請至<a href="https://www.railway.gov.tw/" target="_blank" class="link-info">台鐵官網</a>查詢
+                                </div>
+                            </div>
+                        </div>
+                        <div class="train-info-card">
+                            <div class="train-info-header">
+                                <span class="train-badge hsr-badge">🚄 高鐵</span>
+                                <span class="train-station">高鐵台中站 (烏日)</span>
+                            </div>
+                            <div class="train-info-body">
+                                <div class="train-schedule-row">
+                                    <span class="train-name">標準車廂</span>
+                                    <span class="train-dest">往台北</span>
+                                    <span class="train-time time-normal">約 50 分鐘</span>
+                                </div>
+                                <div class="train-schedule-row">
+                                    <span class="train-name">標準車廂</span>
+                                    <span class="train-dest">往高雄</span>
+                                    <span class="train-time time-normal">約 50 分鐘</span>
+                                </div>
+                                <div class="train-info-note">
+                                    <i class="fa-solid fa-circle-info me-1 text-info"></i>
+                                    詳細時刻表請至<a href="https://www.thsrc.com.tw/" target="_blank" class="link-info">高鐵官網</a>查詢
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="transfer-tip">
+                        <i class="fa-solid fa-lightbulb text-warning me-2"></i>
+                        <strong>前往高鐵台中站：</strong>搭乘台中捷運綠線至「高鐵台中站」直達，約 34 分鐘，票價 50 元。
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- ===================== 運具介紹橫幅 ===================== -->
+    <section class="transport-overview-section">
+        <div class="transport-overview-container">
+            <h2 class="section-title text-center">台中大眾運輸總覽</h2>
+            <p class="section-subtitle text-center">整合四大運具，輕鬆穿梭台中各地</p>
+            <div class="transport-cards-row">
+                <div class="transport-overview-card">
+                    <div class="toc-icon bus-glow">🚌</div>
+                    <h4>台中市公車</h4>
+                    <p>雙十優惠，10公里內免費乘車，超過部分每公里 2.5 元，最高 10 元</p>
+                    <div class="toc-tag">300+ 路線</div>
+                </div>
+                <div class="transport-overview-card">
+                    <div class="toc-icon mrt-glow">🚇</div>
+                    <h4>台中捷運綠線</h4>
+                    <p>北屯總站 ↔ 高鐵台中站，18 站，尖峰 6 分鐘一班，票價 20~50 元</p>
+                    <div class="toc-tag">18 站全線</div>
+                </div>
+                <div class="transport-overview-card">
+                    <div class="toc-icon train-glow">🚆</div>
+                    <h4>台鐵</h4>
+                    <p>台中站為重要幹線，自強號、莒光號、區間車班次密集，連接南北</p>
+                    <div class="toc-tag">縱貫線幹線</div>
+                </div>
+                <div class="transport-overview-card">
+                    <div class="toc-icon hsr-glow">🚄</div>
+                    <h4>高速鐵路</h4>
+                    <p>高鐵台中站（烏日），直達台北約 50 分鐘，與捷運直接連通轉乘</p>
+                    <div class="toc-tag">高鐵台中站</div>
+                </div>
+                <div class="transport-overview-card">
+                    <div class="toc-icon youbike-glow">🚲</div>
+                    <h4>YouBike 2.0</h4>
+                    <p>遍布台中市各大捷運站、公車站附近，前 30 分鐘 10 元，低碳環保</p>
+                    <div class="toc-tag">站點超過 300</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div><!-- /#search-page -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ================================================
+// F-01 一站式查詢平台 — 前端邏輯
+// 鍾晴伃 負責功能
+// ================================================
+
+let allStationsCache = [];
+let selectedTransportTypes = ['all'];
+
+// ---- 初始化 ----
+document.addEventListener('DOMContentLoaded', function () {
+    // 載入所有站點以供自動完成
+    fetch('/api/stations')
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'success') {
+                allStationsCache = res.data;
+            }
+        });
+
+    // 建立捷運站點列表
+    buildMrtLineDisplay();
+
+    // 點擊頁面其他處關閉 autocomplete
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('#start-group')) closeAutocomplete('start');
+        if (!e.target.closest('#end-group')) closeAutocomplete('end');
+    });
+});
+
+// ---- 自動完成 ----
+function handleSearchAutocomplete(role) {
+    const inputEl = document.getElementById(`search-${role}-input`);
+    const listEl = document.getElementById(`${role}-autocomplete-list`);
+    const query = inputEl.value.trim().toLowerCase();
+
+    if (query.length < 1) {
+        listEl.style.display = 'none';
+        return;
+    }
+
+    const filtered = allStationsCache.filter(s =>
+        s.station_name.toLowerCase().includes(query)
+    ).slice(0, 8);
+
+    if (filtered.length === 0) {
+        listEl.innerHTML = '<div class="ac-item text-muted small">找不到符合的站點</div>';
+        listEl.style.display = 'block';
+        return;
+    }
+
+    const typeIcons = { bus: '🚌', mrt: '🚇', transfer: '🔄' };
+    listEl.innerHTML = filtered.map(s => `
+        <div class="ac-item" onclick="selectStation('${role}', '${s.station_id}', '${s.station_name}', '${s.transport_type}')">
+            <span class="ac-icon">${typeIcons[s.transport_type] || '📍'}</span>
+            <span class="ac-name">${s.station_name}</span>
+            <span class="ac-type">${s.transport_type === 'transfer' ? '轉乘點' : (s.transport_type === 'mrt' ? '捷運站' : '公車站')}</span>
+        </div>
+    `).join('');
+    listEl.style.display = 'block';
+}
+
+function selectStation(role, id, name, type) {
+    document.getElementById(`search-${role}-input`).value = name;
+    document.getElementById(`search-${role}-id`).value = id;
+    closeAutocomplete(role);
+}
+
+function closeAutocomplete(role) {
+    const listEl = document.getElementById(`${role}-autocomplete-list`);
+    if (listEl) listEl.style.display = 'none';
+}
+
+// ---- 交換起訖點 ----
+function swapStations() {
+    const startInput = document.getElementById('search-start-input');
+    const endInput = document.getElementById('search-end-input');
+    const startId = document.getElementById('search-start-id');
+    const endId = document.getElementById('search-end-id');
+
+    const tmpVal = startInput.value;
+    const tmpId = startId.value;
+
+    startInput.value = endInput.value;
+    startId.value = endId.value;
+    endInput.value = tmpVal;
+    endId.value = tmpId;
+
+    // 動畫效果
+    const btn = document.getElementById('swap-btn');
+    btn.classList.add('spinning');
+    setTimeout(() => btn.classList.remove('spinning'), 500);
+}
+
+// ---- 交通工具 Chip 切換 ----
+function toggleChip(el) {
+    const type = el.dataset.type;
+    const chips = document.querySelectorAll('.chip');
+
+    if (type === 'all') {
+        chips.forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
+        selectedTransportTypes = ['all'];
+    } else {
+        const allChip = document.querySelector('.chip[data-type="all"]');
+        allChip.classList.remove('active');
+
+        el.classList.toggle('active');
+        const activeChips = [...document.querySelectorAll('.chip.active')].map(c => c.dataset.type);
+
+        if (activeChips.length === 0) {
+            allChip.classList.add('active');
+            selectedTransportTypes = ['all'];
+        } else {
+            selectedTransportTypes = activeChips;
+        }
+    }
+}
+
+// ---- 時間選擇 ----
+function toggleTimeInput() {
+    const mode = document.getElementById('depart-time-mode').value;
+    const timeInput = document.getElementById('scheduled-time');
+    timeInput.style.display = mode === 'scheduled' ? 'block' : 'none';
+    if (mode === 'scheduled') {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() + 5);
+        timeInput.value = now.toISOString().slice(0, 16);
+    }
+}
+
+// ---- 執行查詢 ----
+function executeSearch() {
+    const startId = document.getElementById('search-start-id').value;
+    const endId = document.getElementById('search-end-id').value;
+    const startName = document.getElementById('search-start-input').value.trim();
+    const endName = document.getElementById('search-end-input').value.trim();
+
+    if (!startName || !endName) {
+        showSearchError('請填入出發地點與目的地點！');
+        return;
+    }
+
+    if (startId === endId && startId !== '') {
+        showSearchError('起點與終點不能相同！');
+        return;
+    }
+
+    // 如果沒有選擇 station_id，以名稱模糊匹配第一筆
+    let resolvedStartId = startId;
+    let resolvedEndId = endId;
+
+    if (!resolvedStartId) {
+        const match = allStationsCache.find(s => s.station_name.includes(startName));
+        if (match) resolvedStartId = match.station_id;
+    }
+    if (!resolvedEndId) {
+        const match = allStationsCache.find(s => s.station_name.includes(endName));
+        if (match) resolvedEndId = match.station_id;
+    }
+
+    if (!resolvedStartId || !resolvedEndId) {
+        showSearchError('找不到對應站點，請從下拉選單中選擇站點名稱。');
+        return;
+    }
+
+    // 顯示 Loading 狀態
+    const btn = document.getElementById('btn-search-main');
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> 計算最佳路線中...';
+    btn.disabled = true;
+
+    fetch(`/api/v1/route_plans?start=${resolvedStartId}&end=${resolvedEndId}`)
+        .then(r => r.json())
+        .then(res => {
+            btn.innerHTML = '<i class="fa-solid fa-location-arrow me-2"></i> 查詢最佳路線<div class="btn-shimmer"></div>';
+            btn.disabled = false;
+
+            if (res.status === 'success') {
+                renderSearchResults(res, startName || res.start_station.station_name, endName || res.end_station.station_name);
+            } else {
+                showSearchError(res.message || '查詢失敗，請稍後再試。');
+            }
+        })
+        .catch(err => {
+            btn.innerHTML = '<i class="fa-solid fa-location-arrow me-2"></i> 查詢最佳路線<div class="btn-shimmer"></div>';
+            btn.disabled = false;
+            showSearchError('無法連線到伺服器，請確認網路連線。');
+        });
+}
+
+// ---- 渲染查詢結果 ----
+function renderSearchResults(res, startName, endName) {
+    const plans = res.plans;
+
+    // 更新摘要
+    document.getElementById('summary-start-name').textContent = startName;
+    document.getElementById('summary-end-name').textContent = endName;
+    document.getElementById('results-subtitle-text').textContent = `共找到 ${plans.length} 個替代方案`;
+
+    // 渲染方案卡片
+    const grid = document.getElementById('plan-cards-grid');
+    grid.innerHTML = '';
+
+    const typeColors = {
+        bus: { color: '#0ea5e9', label: '公車', icon: 'fa-bus' },
+        mrt: { color: '#a855f7', label: '捷運', icon: 'fa-subway' },
+        walking: { color: '#94a3b8', label: '步行', icon: 'fa-person-walking' },
+        youbike: { color: '#f59e0b', label: 'YouBike', icon: 'fa-bicycle' },
+    };
+
+    const planIcons = {
+        plan_mrt: '🚇',
+        plan_bus: '🚌',
+        plan_green: '🚲',
+    };
+
+    plans.forEach((plan, idx) => {
+        const isRecommended = idx === 0;
+        const segHtml = plan.segments.map(seg => {
+            const meta = typeColors[seg.type] || { color: '#94a3b8', label: seg.type, icon: 'fa-route' };
+            return `
+                <div class="result-seg-item">
+                    <div class="result-seg-dot" style="background:${meta.color}; box-shadow:0 0 6px ${meta.color}"></div>
+                    <div class="result-seg-info">
+                        <span class="result-seg-title">${seg.desc}</span>
+                        <span class="result-seg-sub">
+                            ${seg.value} &nbsp;·&nbsp;
+                            <i class="fa-regular fa-clock"></i> ${seg.minutes} 分
+                            &nbsp;·&nbsp;
+                            <i class="fa-solid fa-dollar-sign"></i> NT$ ${seg.fare}
+                        </span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        grid.innerHTML += `
+            <div class="result-plan-card ${isRecommended ? 'recommended' : ''}">
+                ${isRecommended ? '<div class="recommended-badge"><i class="fa-solid fa-star me-1"></i>推薦方案</div>' : ''}
+                <div class="result-plan-header">
+                    <div class="result-plan-icon">${planIcons[plan.id] || '🚌'}</div>
+                    <div class="result-plan-meta">
+                        <div class="result-plan-name">${plan.name}</div>
+                        <div class="result-plan-desc">${plan.description}</div>
+                    </div>
+                </div>
+                <div class="result-plan-stats">
+                    <div class="result-stat">
+                        <i class="fa-regular fa-clock text-info"></i>
+                        <span class="result-stat-value">${plan.total_minutes} 分鐘</span>
+                        <span class="result-stat-label">預估時間</span>
+                    </div>
+                    <div class="result-stat-divider"></div>
+                    <div class="result-stat">
+                        <i class="fa-solid fa-dollar-sign text-success"></i>
+                        <span class="result-stat-value">NT$ ${plan.total_fare}</span>
+                        <span class="result-stat-label">預估費用</span>
+                    </div>
+                </div>
+                <div class="result-segs-timeline">
+                    ${segHtml}
+                </div>
+                <a href="/?start=${document.getElementById('search-start-id').value}&end=${document.getElementById('search-end-id').value}" class="result-map-btn">
+                    <i class="fa-solid fa-map-location-dot me-1"></i> 在地圖上查看路線
+                </a>
+            </div>
+        `;
+    });
+
+    // 顯示結果區塊，隱藏 Hero
+    document.querySelector('.search-hero').style.display = 'none';
+    document.querySelector('.search-results-section').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ---- 返回查詢 ----
+function backToSearch() {
+    document.querySelector('.search-hero').style.display = 'flex';
+    document.querySelector('.search-results-section').style.display = 'none';
+}
+
+// ---- 錯誤提示 ----
+function showSearchError(msg) {
+    const existing = document.getElementById('search-error-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'search-error-toast';
+    toast.className = 'search-error-toast';
+    toast.innerHTML = `<i class="fa-solid fa-circle-exclamation me-2"></i>${msg}`;
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+    }, 3500);
+}
+
+// ================================================
+// 票價試算
+// ================================================
+function calcBusFare() {
+    const km = parseFloat(document.getElementById('bus-distance-input').value) || 0;
+    let fare = 0;
+    if (km > 10) {
+        fare = Math.min(10, Math.ceil((km - 10) * 2.5));
+    }
+    document.getElementById('bus-fare-result').textContent = `${fare} 元`;
+    document.getElementById('bus-fare-result').className = `fare-result ${fare === 0 ? 'text-success' : 'text-warning'}`;
+}
+
+function calcMrtFare() {
+    const stations = parseInt(document.getElementById('mrt-stations-input').value) || 0;
+    const fare = stations > 0 ? Math.min(50, 20 + (stations * 5)) : 0;
+    document.getElementById('mrt-fare-result').textContent = `${fare} 元`;
+    document.getElementById('mrt-fare-result').className = `fare-result ${fare <= 25 ? 'text-success' : 'text-warning'}`;
+}
+
+function calcYoubikeFare() {
+    const mins = parseInt(document.getElementById('youbike-mins-input').value) || 0;
+    let fare = 0;
+    if (mins > 0) {
+        const intervals = Math.ceil(mins / 30);
+        if (mins <= 240) fare = intervals * 10;
+        else if (mins <= 480) fare = 80 + (Math.ceil((mins - 240) / 30) * 20);
+        else fare = 80 + 160 + (Math.ceil((mins - 480) / 30) * 40);
+    }
+    document.getElementById('youbike-fare-result').textContent = `${fare} 元`;
+    document.getElementById('youbike-fare-result').className = `fare-result ${fare <= 20 ? 'text-success' : 'text-warning'}`;
+}
+
+// ================================================
+// 班次快查
+// ================================================
+function switchTimetableTab(tab) {
+    document.querySelectorAll('.tt-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tt-content').forEach(c => c.classList.remove('active'));
+    document.getElementById(`tt-tab-${tab}`).classList.add('active');
+    document.getElementById(`tt-content-${tab}`).classList.add('active');
+}
+
+function searchBusStop() {
+    const query = document.getElementById('bus-stop-search').value.trim();
+    const resultsEl = document.getElementById('bus-timetable-results');
+    if (!query) return;
+
+    // 先從 cache 中找最接近的站點
+    const matches = allStationsCache.filter(s =>
+        s.station_name.includes(query) && (s.transport_type === 'bus' || s.transport_type === 'transfer')
+    ).slice(0, 3);
+
+    if (matches.length === 0) {
+        resultsEl.innerHTML = '<div class="tt-placeholder"><p class="text-muted small">找不到符合站點，請嘗試其他關鍵字</p></div>';
+        return;
+    }
+
+    resultsEl.innerHTML = '<div class="text-center py-2"><div class="spinner-border spinner-border-sm text-info"></div><span class="text-muted small ms-2">查詢即時班次中...</span></div>';
+
+    // 使用第一個符合的站點查詢
+    fetch(`/api/station/${matches[0].station_id}`)
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'success' && res.data.bus && res.data.bus.length > 0) {
+                resultsEl.innerHTML = `
+                    <div class="tt-station-name"><i class="fa-solid fa-location-dot me-1 text-info"></i>${matches[0].station_name}</div>
+                    <div class="arrival-list">
+                        ${res.data.bus.map(item => {
+                            const min = Math.floor(item.EstimateTime / 60);
+                            const timeText = item.EstimateTime <= 60 ? '進站中' : `${min} 分鐘`;
+                            const cls = item.EstimateTime <= 60 ? 'time-soon' : (min > 8 ? 'time-later' : 'time-normal');
+                            return `
+                                <div class="arrival-item">
+                                    <span class="route-num">${item.RouteName} 路</span>
+                                    <span class="arrival-time ${cls}">${timeText}</span>
+                                </div>`;
+                        }).join('')}
+                    </div>
+                `;
+            } else {
+                resultsEl.innerHTML = '<div class="tt-placeholder"><p class="text-muted small">此站目前無班次資料</p></div>';
+            }
+        })
+        .catch(() => {
+            resultsEl.innerHTML = '<div class="tt-placeholder"><p class="text-danger small">連線失敗，請稍後再試</p></div>';
+        });
+}
+
+// 建立台中捷運站點按鈕列
+function buildMrtLineDisplay() {
+    const stations = [
+        '北屯總站', '舊社', '松竹', '四維國小', '文心崇德', '文心中清',
+        '文華高中', '文心櫻花', '市政府', '水安宮', '文心森林公園',
+        '南屯', '豐樂公園', '大慶', '九張犁', '九德', '烏日', '高鐵台中站'
+    ];
+    const container = document.getElementById('mrt-line-display');
+    container.innerHTML = `
+        <div class="mrt-stations-list">
+            ${stations.map((s, i) => `
+                <button class="mrt-station-btn" onclick="queryMrtStation('${s}', ${i})">
+                    <span class="mrt-station-num">${i + 1}</span>
+                    <span class="mrt-station-name-btn">${s}</span>
+                </button>
+            `).join('')}
+        </div>
+    `;
+}
+
+function queryMrtStation(stationName, idx) {
+    const resultsEl = document.getElementById('mrt-timetable-results');
+    resultsEl.style.display = 'block';
+    resultsEl.innerHTML = '<div class="text-center py-2"><div class="spinner-border spinner-border-sm text-secondary"></div><span class="text-muted small ms-2">查詢捷運發車時刻中...</span></div>';
+
+    // 匹配資料庫中的捷運站
+    const match = allStationsCache.find(s => s.transport_type === 'mrt' && s.station_name.includes(stationName.replace('站', '')));
+    if (!match) {
+        // 使用任一個捷運站的 API 回應
+        const anyMrt = allStationsCache.find(s => s.transport_type === 'mrt');
+        if (!anyMrt) {
+            resultsEl.innerHTML = '<div class="tt-placeholder"><p class="text-muted small">尚無捷運站點資料</p></div>';
+            return;
+        }
+        fetchMrtData(anyMrt.station_id, stationName, idx, resultsEl);
+        return;
+    }
+    fetchMrtData(match.station_id, stationName, idx, resultsEl);
+}
+
+function fetchMrtData(stationId, stationName, idx, resultsEl) {
+    fetch(`/api/station/${stationId}`)
+        .then(r => r.json())
+        .then(res => {
+            if (res.status === 'success' && res.data.mrt && res.data.mrt.length > 0) {
+                resultsEl.innerHTML = `
+                    <div class="tt-station-name"><i class="fa-solid fa-subway me-1 text-secondary"></i>${stationName}</div>
+                    <div class="arrival-list">
+                        ${res.data.mrt.map(item => {
+                            const min = Math.floor(item.EstimateTime / 60);
+                            const cls = item.EstimateTime <= 180 ? 'time-soon' : 'time-normal';
+                            return `
+                                <div class="arrival-item">
+                                    <span class="route-num">往 ${item.Destination}</span>
+                                    <span class="arrival-time ${cls}">${min} 分鐘</span>
+                                </div>`;
+                        }).join('')}
+                    </div>
+                `;
+            } else {
+                resultsEl.innerHTML = '<div class="tt-placeholder"><p class="text-muted small">此時段無發車資料</p></div>';
+            }
+        })
+        .catch(() => {
+            resultsEl.innerHTML = '<div class="tt-placeholder"><p class="text-danger small">連線失敗</p></div>';
+        });
+}
+</script>
+{% endblock %}
