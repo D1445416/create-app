@@ -1,4 +1,39 @@
 <!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}台中大眾運輸站點擁擠度顯示系統{% endblock %}</title>
+    
+    <!-- Bootstrap 5 CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- 全域客製化極致美學樣式表 -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <!-- 玻璃背景微光光斑 -->
+    <div class="bg-glow-spot"></div>
+    <div class="bg-glow-spot-secondary"></div>
+
+    <!-- 頂部導覽列 (Header) -->
+    <header class="navbar navbar-expand-lg navbar-dark bg-transparent border-bottom border-secondary border-opacity-25 py-3 sticky-top glass-panel rounded-0">
+        <div class="container py-0">
+            <a class="navbar-brand d-flex align-items-center gap-2 fw-bold text-white fs-4" href="/">
+                <span class="fs-3">台中大眾運輸擁擠度系統</span>
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse justify-content-end" id="navbarNav">
+                <ul class="navbar-nav gap-2">
+                    <li class="nav-item">
+                        <a class="nav-link text-light px-3 py-2 rounded-3 hover-effect" href="/">首頁列表</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-light px-3 py-2 rounded-3 hover-effect" href="https://tdx.transportdata.tw/" target="_blank">交通部 TDX</a>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
@@ -52,5 +87,96 @@
 <!-- Bootstrap 5 JS Bundle -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 {% block scripts %}{% endblock %}
+    <meta name="description" content="台中大眾運輸交通整合平台，提供公車與捷運即時到站雙運具動態、路線替代方案規劃、個人化站點收藏與價格/乘車時間精準試算，為您省去候車焦慮。">
+    <meta name="keywords" content="台中大眾運輸, 台中公車, 台中捷運, 雙十優惠, YouBike 2.0, 路線規劃, 即時到站, 轉乘資訊">
+    <title>{% block title %}台中大眾運輸交通整合 APP - 即時動態看板與轉乘路網{% endblock %}</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet.js Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+                <i class="fa-solid fa-compass-drafting text-info"></i>
+                <span>台中大眾運輸交通整合 APP</span>
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
+                            <i class="fa-solid fa-map-location-dot me-1"></i> 地圖查詢
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/search' %}active{% endif %}" href="/search">
+                            <i class="fa-solid fa-magnifying-glass-location me-1"></i> 一站式查詢
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/favorites' %}active{% endif %}" href="/favorites">
+                            <i class="fa-solid fa-star me-1 text-warning"></i> 收藏管理
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </header>
+
+    <!-- 訊息提示區塊 (Flash Messages) -->
+    <div class="container py-0 my-3">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show glass-panel border-opacity-50" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- 主內容區塊 (Main Content Block) -->
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- 頁尾區塊 (Footer) -->
+    <footer class="text-center py-4 border-top border-secondary border-opacity-10 text-muted mt-5">
+        <div class="container py-0">
+            <p class="mb-1">© 2026 台中大眾運輸站點狀態與擁擠度顯示系統</p>
+            <small>資料來源：交通部 TDX (Transport Data eXchange) API | 設計：Antigravity IDE</small>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5 JS Bundle CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 全域客製化前端 JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    
+    </nav>
+
+    <main class="container-fluid p-0">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- JS Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    {% block scripts %}{% endblock %}
 </body>
 </html>

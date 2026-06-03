@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}我的收藏站點 - 台中大眾運輸交通整合 APP{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2 text-info">⭐ 我的收藏站點</h1>
+                <a href="/" class="btn btn-outline-info btn-sm">返回地圖查詢</a>
+            </div>
+
+            {% if favorites %}
+                <div class="row g-4">
+                    {% for fav in favorites %}
+                        <div class="col-md-6" id="fav-card-{{ fav.station_id }}">
+                            <div class="card bg-dark text-white border-secondary h-100 shadow-sm">
+                                <div class="card-body d-flex flex-column justify-content-between">
+                                    <div>
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h5 class="card-title text-light mb-0">{{ fav.station_name or '未命名站點' }}</h5>
+                                            <span class="badge {% if fav.transport_type == 'Bus' %}bg-primary{% else %}bg-purple{% endif %}">
+                                                {{ '公車' if fav.transport_type == 'Bus' else '捷運' }}
+                                            </span>
+                                        </div>
+                                        <p class="text-muted small mb-3">
+                                            站點 ID: <code>{{ fav.station_id }}</code><br>
+                                            收藏時間: {{ fav.added_at }}
+                                        </p>
+                                    </div>
+                                    <div class="d-flex gap-2 mt-3">
+                                        <a href="/?station_id={{ fav.station_id }}" class="btn btn-info btn-sm flex-grow-1">在地圖查看</a>
+                                        <button onclick="deleteFavorite('{{ fav.station_id }}')" class="btn btn-outline-danger btn-sm">刪除</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5 bg-dark border border-secondary rounded-3">
+                    <h3 class="text-muted mb-3">尚無收藏任何站點</h3>
+                    <p class="text-secondary small">請在地圖上點擊站點，並點擊「加入收藏」按鈕來加入您的常用路線。</p>
+                    <a href="/" class="btn btn-info mt-3">前往地圖</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function deleteFavorite(stationId) {
+    if (!confirm("確定要將此站點從收藏中移除嗎？")) return;
+    
+    fetch(`/favorites/delete/${stationId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(res => {
+        if (res.status === 'success') {
+            const card = document.getElementById(`fav-card-${stationId}`);
+            if (card) {
+                card.remove();
+            }
+            // If no cards left, refresh page to show empty state
+            if (document.querySelectorAll('.col-md-6').length === 0) {
+                window.location.reload();
+            }
+        } else {
+            alert("刪除失敗：" + res.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("發送請求時發生錯誤");
+    });
+}
+</script>
+<style>
+.bg-purple {
+    background-color: #8b5cf6 !important;
+}
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(56, 189, 248, 0.15) !important;
+}
+</style>
+{% endblock %}
