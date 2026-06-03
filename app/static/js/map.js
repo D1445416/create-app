@@ -1,10 +1,21 @@
+// Global state variables
+let map;
+let allStations = [];
+let stationMarkers = {};
+let activeStationId = null;
+let autoRefreshInterval = null;
+let countdownInterval = null;
+let currentRoutePolylines = []; // Store active polylines drawn on the map
+let userLocationMarker = null;
+let userLocationCircle = null;
+let activeReminders = {}; // Store bus and mrt arrival reminders
+
 document.addEventListener('DOMContentLoaded', function() {
     // 1. 初始化地圖，中心點設在台中火車站附近
     const map = L.map('map').setView([24.1373, 120.6856], 14);
 
     // 使用極致美觀的 Dark Mode 地圖樣式
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 20
     }).addTo(map);
