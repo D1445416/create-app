@@ -34,6 +34,52 @@
                     </li>
                     <li class="nav-item">
                         <a class="nav-link text-light px-3 py-2 rounded-3 hover-effect" href="https://tdx.transportdata.tw/" target="_blank">交通部 TDX</a>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="台中大眾運輸交通整合平台，提供公車與捷運即時到站雙運具動態、路線替代方案規劃、個人化站點收藏與價格/乘車時間精準試算，為您省去候車焦慮。">
+    <meta name="keywords" content="台中大眾運輸, 台中公車, 台中捷運, 雙十優惠, YouBike 2.0, 路線規劃, 即時到站, 轉乘資訊">
+    <title>{% block title %}台中大眾運輸交通整合 APP - 即時動態看板與轉乘路網{% endblock %}</title>
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Leaflet.js Map -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
+                <i class="fa-solid fa-compass-drafting text-info"></i>
+                <span>台中大眾運輸交通整合 APP</span>
+            </a>
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
+                            <i class="fa-solid fa-map-location-dot me-1"></i> 地圖查詢
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/search' %}active{% endif %}" href="/search">
+                            <i class="fa-solid fa-magnifying-glass-location me-1"></i> 一站式查詢
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/favorites' %}active{% endif %}" href="/favorites">
+                            <i class="fa-solid fa-star me-1 text-warning"></i> 收藏管理
+                        </a>
                     </li>
                 </ul>
             </div>
@@ -73,6 +119,15 @@
     <!-- 全域客製化前端 JS -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     
+    </nav>
+
+    <main class="container-fluid p-0">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- JS Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

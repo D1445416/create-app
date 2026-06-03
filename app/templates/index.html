@@ -122,7 +122,102 @@
                     </div>
                 {% endif %}
             </div>
+{% block content %}
+<div id="main-container">
+    <!-- Map Container -->
+    <div id="map"></div>
+    
+    <!-- Glassmorphism Sidebar -->
+    <div id="sidebar">
+        <!-- Tab Controls -->
+        <div class="sidebar-tabs">
+            <button class="tab-btn active" id="tab-live" onclick="switchTab('live')">
+                <i class="fa-solid fa-square-rss me-1"></i> 站點動態
+            </button>
+            <button class="tab-btn" id="tab-route" onclick="switchTab('route')">
+                <i class="fa-solid fa-route me-1"></i> 路線規劃
+            </button>
+            <button class="tab-btn" id="tab-fav" onclick="switchTab('fav')">
+                <i class="fa-solid fa-star me-1 text-warning"></i> 我的收藏
+            </button>
+        </div>
+        
+        <!-- Tab 1: Live Dynamic Arrivals -->
+        <div class="tab-content-panel active" id="content-live">
+            <!-- Search Bar Area -->
+            <div class="search-container mb-3">
+                <div class="input-group-custom">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    <input type="text" id="station-search-input" class="form-input-custom" placeholder="搜尋站點或公車路線 (e.g. 市政府、300)..." oninput="handleStationSearch()">
+                    <button id="clear-search-btn" class="clear-btn" onclick="clearSearchInput()" style="display:none;"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div id="search-results-list" class="search-results-dropdown" style="display:none;"></div>
+            </div>
+            
+            <div id="sidebar-live-content">
+                <div class="text-center mt-5 py-4">
+                    <i class="fa-solid fa-map-location-dot text-secondary mb-3" style="font-size: 3rem; opacity: 0.3;"></i>
+                    <h5 class="text-secondary">請點選地圖站點</h5>
+                    <p class="text-muted small px-4">在 Leaflet 地圖上點擊任何「公車」、「捷運」或「轉乘樞紐」標記點，即可即時顯示動態整合看板，或在上方輸入框直接搜尋。</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tab 2: Route Planner -->
+        <div class="tab-content-panel" id="content-route">
+            <div class="station-card">
+                <h5 class="mb-3 text-info fw-bold"><i class="fa-solid fa-sliders me-1"></i> 路線起訖站點選擇</h5>
+                
+                <!-- 起點站搜尋 -->
+                <div class="form-group-custom" style="position: relative;">
+                    <label for="start-station-input"><i class="fa-solid fa-circle-play text-success me-1"></i> 出發站點</label>
+                    <div class="input-group-custom">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="start-station-input" class="form-input-custom" placeholder="輸入起點站名搜尋..." oninput="handleRouteSearch('start')" onfocus="handleRouteSearch('start')">
+                        <input type="hidden" id="start-station-id" value="">
+                    </div>
+                    <div id="start-search-results" class="search-results-dropdown" style="display:none; max-height: 180px;"></div>
+                </div>
+                
+                <!-- 終點站搜尋 -->
+                <div class="form-group-custom mt-3" style="position: relative;">
+                    <label for="end-station-input"><i class="fa-solid fa-circle-stop text-danger me-1"></i> 目的站點</label>
+                    <div class="input-group-custom">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="end-station-input" class="form-input-custom" placeholder="輸入終點站名搜尋..." oninput="handleRouteSearch('end')" onfocus="handleRouteSearch('end')">
+                        <input type="hidden" id="end-station-id" value="">
+                    </div>
+                    <div id="end-search-results" class="search-results-dropdown" style="display:none; max-height: 180px;"></div>
+                </div>
+                
+                <button class="btn btn-premium w-100 mt-4" onclick="planTripRoute()">
+                    <i class="fa-solid fa-location-arrow me-1"></i> 開始規劃最佳路線
+                </button>
+            </div>
+            
+            <div id="route-results-container">
+                <!-- Route alternatives will be dynamically inserted here -->
+                <div class="text-center py-4 text-muted">
+                    <i class="fa-solid fa-compass text-secondary mb-3" style="font-size: 2.5rem; opacity: 0.2;"></i>
+                    <p class="small">尚未有規劃結果。請在上方選擇起終點，系統將為您演算捷運優先、公車雙十等多種最佳替代方案。</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tab 3: Favorites Quick Access -->
+        <div class="tab-content-panel" id="content-fav">
+            <h5 class="mb-3 text-warning fw-bold"><i class="fa-solid fa-star me-1"></i> 快速常用站點</h5>
+            <div id="sidebar-fav-list" class="favorites-list-sidebar">
+                <!-- Favorites list will be loaded via AJAX -->
+                <div class="text-center py-4 text-muted">
+                    <p class="small">目前沒有收藏的站點。在大眾運輸站點動態面板點擊「加入收藏」以快速管理。</p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
 {% endblock %}
