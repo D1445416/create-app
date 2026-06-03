@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+
+{% block title %}多運具轉乘路徑演算 - 交通資訊整合平台{% endblock %}
+
+{% block styles %}
+<!-- Leaflet.js CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+    body {
+        background-color: #f1f3f7;
+    }
+    
+    /* 質感 Glassmorphism 卡片 */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.5);
+        border-radius: 16px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04);
+    }
+    
+    .card-header-custom {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        background: transparent;
+        padding: 20px 24px 10px 24px;
+    }
+    
+    .map-container {
+        height: 650px;
+        border-radius: 16px;
+        box-shadow: 0 10px 35px rgba(0, 0, 0, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.8);
+        overflow: hidden;
+        z-index: 1;
+    }
+    
+    .sidebar-panel {
+        max-height: 650px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    /* 客製化滾動條 */
+    .sidebar-panel::-webkit-scrollbar {
+        width: 6px;
+    }
+    .sidebar-panel::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .sidebar-panel::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.15);
+        border-radius: 10px;
+    }
+    
+    /* 時間軸設計 */
+    .timeline-container {
+        position: relative;
+    }
+    
+    .timeline-item {
+        position: relative;
+        padding-left: 32px;
+        margin-bottom: 20px;
+    }
+    
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: 9px;
+        top: 10px;
+        bottom: -28px;
+        width: 2px;
+        background-color: #cbd5e1;
+    }
+    
+    .timeline-item:last-child::before {
+        display: none;
+    }
+    
+    .timeline-icon {
+        position: absolute;
+        left: 0;
+        top: 2px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background-color: #fff;
+        border: 4px solid #0d6efd;
+        z-index: 2;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .timeline-icon.start {
+        border-color: #198754;
+    }
+
+    .timeline-icon.end {
+        border-color: #dc3545;
+    }
+
+    .timeline-icon.transfer {
+        border-color: #ffc107;
+        width: 16px;
+        height: 16px;
+        left: 2px;
+        top: 4px;
+    }
+
+    .form-select, .form-check-input {
+        transition: all 0.2s ease-in-out;
+    }
+    
+    .form-select {
+        border-radius: 12px;
+        padding: 11px 16px;
+        border: 1px solid #ced4da;
+    }
+    
+    .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15);
+    }
+
+    .btn-search {
+        border-radius: 12px;
+        padding: 12px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #0d6efd 0%, #005087 100%);
+        border: none;
+        color: white;
+        transition: all 0.2s ease-in-out;
+    }
+    
+    .btn-search:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 20px rgba(13, 110, 253, 0.35);
+        color: white;
+    }
+
+    /* 地圖客製化標記 icon */
+    .leaflet-icon-custom {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 50%;
+        color: white;
+        box-shadow: 0 3px 8px rgba(0,0,0,0.25);
+        border: 2px solid white;
+    }
+    .icon-mrt { background-color: #008e4f; }
+    .icon-bus { background-color: #f29400; }
+    .icon-youbike { background-color: #8cc63f; }
+    .icon-train { background-color: #005087; }
+    .icon-walk { background-color: #6c757d; }
+    .icon-start { background-color: #198754; font-size: 14px; }
+    .icon-end { background-color: #dc3545; font-size: 14px; }
+
+    /* 圖例與徽章 */
+    .legend-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #fff;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- 左側面板：路線規劃與結果 -->
+    <div class="col-lg-4 col-md-5 sidebar-panel">
+        <!-- 路線規劃表單 -->
+        <div class="card glass-card mb-4 border-0">
+            <div class="card-header-custom">
+                <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-search me-2 text-primary"></i>規劃路線</h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('f03.route_planner') }}">
+                    <!-- 起點 -->
+                    <div class="mb-3">
+                        <label for="start_point" class="form-label fw-bold text-secondary">起點站</label>
+                        <select class="form-select" id="start_point" name="start_point" required>
+                            <option value="" disabled {{ 'selected' if not request.form.get('start_point') }}>-- 請選擇起點 --</option>
+                            {% for landmark in landmarks %}
+                                <option value="{{ landmark }}" {{ 'selected' if request.form.get('start_point') == landmark }}>{{ landmark }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- 終點 -->
+                    <div class="mb-3">
+                        <label for="end_point" class="form-label fw-bold text-secondary">終點站</label>
+                        <select class="form-select" id="end_point" name="end_point" required>
+                            <option value="" disabled {{ 'selected' if not request.form.get('end_point') }}>-- 請選擇終點 --</option>
+                            {% for landmark in landmarks %}
+                                <option value="{{ landmark }}" {{ 'selected' if request.form.get('end_point') == landmark }}>{{ landmark }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- 偏好運具 -->
+                    <div class="mb-4">
+                        <label class="form-label d-block fw-bold text-secondary">偏好交通工具</label>
+                        <div class="d-flex flex-wrap gap-3 mt-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="pref_mrt" name="preferences" value="mrt" {{ 'checked' if request.method == 'GET' or 'mrt' in request.form.getlist('preferences') }}>
+                                <label class="form-check-label text-dark fs-7" for="pref_mrt">
+                                    <i class="bi bi-train-lightrail-front-fill text-success me-1"></i>捷運
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="pref_bus" name="preferences" value="bus" {{ 'checked' if request.method == 'GET' or 'bus' in request.form.getlist('preferences') }}>
+                                <label class="form-check-label text-dark fs-7" for="pref_bus">
+                                    <i class="bi bi-bus-front-fill text-warning me-1"></i>公車
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="pref_youbike" name="preferences" value="youbike" {{ 'checked' if request.method == 'GET' or 'youbike' in request.form.getlist('preferences') }}>
+                                <label class="form-check-label text-dark fs-7" for="pref_youbike">
+                                    <i class="bi bi-bicycle text-info me-1"></i>YouBike
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="pref_train" name="preferences" value="train" {{ 'checked' if request.method == 'GET' or 'train' in request.form.getlist('preferences') }}>
+                                <label class="form-check-label text-dark fs-7" for="pref_train">
+                                    <i class="bi bi-train-front-fill text-primary me-1"></i>火車
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-search">
+                            <i class="bi bi-compass me-2"></i>開始規劃路徑
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- 路線結果 -->
+        {% if route_result %}
+        <div class="card glass-card border-0 mb-4">
+            <div class="card-header-custom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-signpost-2 me-2 text-success"></i>最佳轉乘路線</h5>
+                <span class="badge bg-success-subtle text-success px-3 py-2 border border-success-subtle rounded-pill fs-7">{{ route_result.eta }}</span>
+            </div>
+            <div class="card-body p-4">
+                <!-- 概要指標 -->
+                <div class="row text-center bg-light rounded-4 p-3 mb-4 g-2">
+                    <div class="col-4 border-end">
+                        <div class="text-secondary fs-8 mb-1">預估時間</div>
+                        <h4 class="mb-0 fw-bold text-primary">{{ route_result.total_time }}<span class="fs-8 fw-normal text-muted">分</span></h4>
+                    </div>
+                    <div class="col-4 border-end">
+                        <div class="text-secondary fs-8 mb-1">估計票價</div>
+                        <h4 class="mb-0 fw-bold text-success">{{ route_result.total_cost }}<span class="fs-8 fw-normal text-muted">元</span></h4>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-secondary fs-8 mb-1">轉乘次數</div>
+                        <h4 class="mb-0 fw-bold text-dark">{{ route_result.steps|length - 1 }}<span class="fs-8 fw-normal text-muted">次</span></h4>
+                    </div>
+                </div>
+
+                <!-- 時間軸路徑詳細 -->
+                <div class="timeline-container ps-1">
+                    {% for step in route_result.steps %}
+                    <div class="timeline-item">
+                        {% if loop.first %}
+                            <span class="timeline-icon start" title="起點"></span>
+                        {% else %}
+                            <span class="timeline-icon transfer" title="轉乘"></span>
+                        {% endif %}
+                        <div class="ms-2">
+                            <h6 class="mb-1 fw-bold text-dark">{{ step.from }}</h6>
+                            <div class="p-3 my-2 bg-white rounded-3 shadow-none border" style="border-radius: 12px;">
+                                <div class="d-flex align-items-center mb-1 gap-2 flex-wrap">
+                                    {% if step.mode == 'mrt' %}
+                                        <span class="badge text-white" style="background-color: #008e4f;"><i class="bi bi-train-lightrail-front me-1"></i>捷運</span>
+                                    {% elif step.mode == 'bus' %}
+                                        <span class="badge text-white" style="background-color: #f29400;"><i class="bi bi-bus-front me-1"></i>公車</span>
+                                    {% elif step.mode == 'youbike' %}
+                                        <span class="badge text-white" style="background-color: #8cc63f;"><i class="bi bi-bicycle me-1"></i>YouBike</span>
+                                    {% elif step.mode == 'train' %}
+                                        <span class="badge text-white" style="background-color: #005087;"><i class="bi bi-train-front me-1"></i>火車</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-person-walking me-1"></i>步行</span>
+                                    {% endif %}
+                                    <span class="text-secondary fw-semibold small">{{ step.duration }} 分鐘</span>
+                                    {% if step.cost > 0 %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">{{ step.cost }} 元</span>
+                                    {% else %}
+                                        <span class="badge bg-light text-secondary border">免費</span>
+                                    {% endif %}
+                                </div>
+                                <p class="mb-0 text-muted small mt-2">{{ step.instruction }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% if loop.last %}
+                    <div class="timeline-item pb-1">
+                        <span class="timeline-icon end" title="終點"></span>
+                        <div class="ms-2">
+                            <h6 class="mb-0 fw-bold text-danger">{{ step.to }} (目的地)</h6>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 右側面板：地圖顯示 -->
+    <div class="col-lg-8 col-md-7">
+        <div class="card glass-card border-0 p-2">
+            <div id="map" class="map-container"></div>
+            <!-- 地圖圖例 -->
+            <div class="card-footer bg-white border-0 px-3 py-3 d-flex flex-wrap gap-3 align-items-center justify-content-center">
+                <span class="text-muted small fw-bold">運具圖例：</span>
+                <span class="badge legend-badge" style="background-color: #008e4f;"><i class="bi bi-train-lightrail-front-fill me-1"></i>捷運 (綠線)</span>
+                <span class="badge legend-badge" style="background-color: #f29400;"><i class="bi bi-bus-front-fill me-1"></i>公車 (橘線)</span>
+                <span class="badge legend-badge" style="background-color: #8cc63f;"><i class="bi bi-bicycle me-1"></i>YouBike (淺綠線)</span>
+                <span class="badge legend-badge" style="background-color: #005087;"><i class="bi bi-train-front-fill me-1"></i>火車 (深藍線)</span>
+                <span class="badge legend-badge text-dark bg-light border"><i class="bi bi-person-walking me-1"></i>步行 (灰色虛線)</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Leaflet.js JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    // 1. 初始化地圖，預設中心點設在台中市政府捷運站
+    const map = L.map('map').setView([24.1629, 120.6438], 13);
+    
+    // 2. 載入 CartoDB Positron 淺色質感圖磚，呈現極致專業的交通平台質感
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+    }).addTo(map);
+
+    // 3. 取得後端傳過來的 JSON 資料
+    const routeData = {{ route_result | tojson if route_result else 'null' }};
+    const allLandmarks = {{ landmarks | tojson if landmarks else '[]' }};
+    
+    // 所有地標座標定義
+    const landmarkCoords = {
+        '台中車站': [24.1373, 120.6868],
+        '市政府捷運站': [24.1629, 120.6438],
+        '逢甲大學': [24.1798, 120.6450],
+        '一中商圈': [24.1487, 120.6853],
+        '東海大學': [24.1802, 120.6013],
+        '高鐵台中站': [24.1121, 120.6162],
+        '國家歌劇院': [24.1627, 120.6404],
+        '勤美誠品綠園道': [24.1513, 120.6638],
+        '秋紅谷': [24.1674, 120.6397]
+    };
+
+    if (routeData && routeData.route_coords && routeData.route_coords.length > 0) {
+        const coords = routeData.route_coords;
+        const steps = routeData.steps;
+        
+        // 運具線條色彩定義
+        const modeColors = {
+            'mrt': '#008e4f',     // 捷運綠
+            'bus': '#f29400',     // 公車橘黃
+            'youbike': '#8cc63f', // YouBike 草綠
+            'train': '#005087',   // 火車深藍
+            'walk': '#868e96'     // 步行灰色
+        };
+
+        const bounds = [];
+        
+        // A. 繪製起點標記
+        const startPoint = coords[0];
+        const startLatLng = [startPoint.lat, startPoint.lng];
+        bounds.push(startLatLng);
+        
+        L.marker(startLatLng, {
+            icon: L.divIcon({
+                className: 'leaflet-icon-custom icon-start',
+                html: '<i class="bi bi-geo-alt-fill"></i>',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16]
+            })
+        }).addTo(map).bindPopup(`<b>起點：${startPoint.name}</b>`).openPopup();
+
+        // B. 逐段繪製連線與轉乘標記
+        for (let i = 0; i < steps.length; i++) {
+            const step = steps[i];
+            const fromNode = coords[i];
+            const toNode = coords[i+1];
+            const toLatLng = [toNode.lat, toNode.lng];
+            bounds.push(toLatLng);
+
+            const modeColor = modeColors[step.mode] || '#6c757d';
+            const isWalk = (step.mode === 'walk');
+
+            // 繪製路徑折線
+            const polyline = L.polyline([[fromNode.lat, fromNode.lng], toLatLng], {
+                color: modeColor,
+                weight: 6,
+                opacity: 0.85,
+                dashArray: isWalk ? '8, 8' : null
+            }).addTo(map);
+
+            polyline.bindPopup(`
+                <div style="font-family: system-ui;">
+                    <h6 style="margin: 0 0 5px 0; font-weight: bold; color: ${modeColor};">${step.mode_name} 路段</h6>
+                    <p style="margin: 0 0 3px 0; font-size: 13px;">${step.instruction}</p>
+                    <small style="color: #6c757d;">花費時間: ${step.duration} 分鐘 | 票價: ${step.cost} 元</small>
+                </div>
+            `);
+
+            // C. 繪製終點或轉乘點標記
+            if (i === steps.length - 1) {
+                // 終點
+                L.marker(toLatLng, {
+                    icon: L.divIcon({
+                        className: 'leaflet-icon-custom icon-end',
+                        html: '<i class="bi bi-flag-fill"></i>',
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16]
+                    })
+                }).addTo(map).bindPopup(`<b>終點：${toNode.name}</b>`);
+            } else {
+                // 轉乘點
+                const modeIcons = {
+                    'mrt': 'bi-train-lightrail-front-fill',
+                    'bus': 'bi-bus-front-fill',
+                    'youbike': 'bi-bicycle',
+                    'train': 'bi-train-front-fill',
+                    'walk': 'bi-person-walking'
+                };
+                const iconClass = modeIcons[step.mode] || 'bi-geo-alt';
+
+                L.marker(toLatLng, {
+                    icon: L.divIcon({
+                        className: `leaflet-icon-custom icon-${step.mode}`,
+                        html: `<i class="bi ${iconClass}"></i>`,
+                        iconSize: [28, 28],
+                        iconAnchor: [14, 14]
+                    })
+                }).addTo(map).bindPopup(`
+                    <b>轉乘點：${toNode.name}</b><br>
+                    <span class="badge" style="background-color: ${modeColor};">${step.mode_name}</span>
+                `);
+            }
+        }
+
+        // 縮放地圖至適應整條路線
+        map.fitBounds(bounds, { padding: [60, 60] });
+    } else {
+        // 如果目前沒有搜尋路線，在地圖上列出所有的地標，讓地圖看起來非常生動
+        const bounds = [];
+        for (const [name, coord] of Object.entries(landmarkCoords)) {
+            L.marker(coord, {
+                title: name
+            }).addTo(map).bindPopup(`
+                <div style="text-align: center;">
+                    <h6 style="margin: 0; font-weight: bold;">${name}</h6>
+                    <small style="color: #6c757d;">大眾運輸整合站點</small>
+                </div>
+            `);
+            bounds.push(coord);
+        }
+        
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [40, 40] });
+        }
+    }
+});
+</script>
+{% endblock %}
