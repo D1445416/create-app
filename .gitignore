@@ -1,26 +1,17 @@
 __pycache__/
 *.py[cod]
 *$py.class
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
 
-# Database
+# SQLite database files
 instance/
 *.db
-*.db-journal
-*.db-wal
-*.db-shm
 
 # Environments
-.env
-.venv
-env/
+.venv/
 venv/
 ENV/
-env.bak/
-venv.bak/
-.vscode/
-.idea/
-*.log
+env/
+
+# OS files
+.DS_Store
+Thumbs.db

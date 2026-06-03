@@ -1,71 +1,42 @@
-from flask import Flask
-
-def create_app():
-    app = Flask(__name__)
-    
-    # Load config from environment or default
-    app.config['SECRET_KEY'] = 'dev_secret_key'
-
-    # Register blueprints
-    from app.routes.f03_routing import f03_bp
-    app.register_blueprint(f03_bp, url_prefix='/f03')
-
-    @app.route('/')
-    def index():
-        return '歡迎來到交通資訊整合平台！請前往 <a href="/f03/planner">多運具轉乘路徑演算模組 (F-03)</a>'
-
-    return app
 import os
-from flask import Flask
-from dotenv import load_dotenv
-
-# 載入 .env 檔案中的環境變數
-load_dotenv()
+from flask import Flask, g
+from app.routes import ALL_BLUEPRINTS
 
 def create_app(test_config=None):
     """
-    Flask 應用程式工廠 (Application Factory)
-    負責初始化 Flask App、載入設定、註冊路由與 CLI 命令。
+    Flask 應用程式工廠。
     """
     app = Flask(__name__, instance_relative_config=True)
     
-    # 全域設定
+    # 預設設定
+    db_path = os.path.abspath(os.path.join(app.root_path, '../instance/database.db'))
     app.config.from_mapping(
-        SECRET_KEY=os.getenv('SECRET_KEY', 'taichung_transit_default_secret_key_12345'),
-        DATABASE=os.path.join(app.instance_path, 'database.db'),
+        SECRET_KEY=os.environ.get('SECRET_KEY', 'dev-secret-key'),
+        DATABASE=os.environ.get('DATABASE', db_path),
     )
 
-    if test_config is not None:
+    if test_config is None:
+        # 載入實例設定（如果有的話）
+        app.config.from_pyfile('config.py', silent=True)
+    else:
+        # 載入測試設定
         app.config.from_mapping(test_config)
 
-    # 確保 SQLite 資料庫所在的 instance 目錄存在
+    # 確保 instance 目錄存在
     try:
         os.makedirs(app.instance_path)
     except OSError:
         pass
 
-    # 註冊控制器 Blueprint 路由
-    from app.routes import views_bp
-    app.register_blueprint(views_bp)
+    # 註冊資料庫連線釋放機制
+    @app.teardown_appcontext
+    def close_db(e=None):
+        db = g.pop('db', None)
+        if db is not None:
+            db.close()
 
-    # 提供 Flask 命令行工具以進行資料庫初始化： flask init-db
-    @app.cli.command('init-db')
-    def init_db_command():
-        """重新初始化 SQLite 資料表 (會清空舊有資料)。"""
-        from app.models import init_db, get_db_connection
-        conn = get_db_connection(app.config['DATABASE'])
-        init_db(conn)
-        conn.close()
-        print("資料庫初始化完成！")
+    # 註冊所有 Blueprints
+    for bp in ALL_BLUEPRINTS:
+        app.register_blueprint(bp)
 
     return app
-
-def init_db():
-    """
-    供外部腳本 (如整合測試或部署工具) 直接呼叫初始化資料庫的函式。
-    """
-    from app.models import init_db as model_init, get_db_connection
-    # 直接使用預設的 instance 資料庫路徑進行初始化
-    conn = get_db_connection()
-    model_init(conn)
-    conn.close()

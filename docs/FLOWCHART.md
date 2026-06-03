@@ -1,73 +1,104 @@
-# 流程圖設計文件 (Flowcharts & Sequence Diagrams)
+# 流程圖設計 (Flowchart) - 台中大眾運輸交通整合APP系統
 
-本文件使用 Mermaid 語法來繪製「台中大眾運輸交通整合APP」F-03 轉乘規劃模組的操作流程與資料流。
+本文件根據 [PRD.md](file:///c:/Users/User/Desktop/create-app/docs/PRD.md) 的功能需求與 [ARCHITECTURE.md](file:///c:/Users/User/Desktop/create-app/docs/ARCHITECTURE.md) 的系統架構設計，繪製本系統的**使用者流程圖（User Flow）**與**系統序列圖（Sequence Diagram）**，並提供**功能清單對照表**。
 
-## 一、使用者流程圖 (User Flow)
+---
 
-這個流程圖描述使用者在網頁上的操作路徑：
+## 1. 使用者流程圖 (User Flow)
+
+此流程圖描述使用者從開啟網頁開始，操作各項主要功能（包括定位、路線規劃、地圖檢視、即時到站查詢、新增與刪除收藏）的操作路徑。
 
 ```mermaid
-flowchart TD
-    Start([使用者訪問 /f03/planner]) --> InitView[地圖載入：預設顯示台中所有地標標記]
-    InitView --> Selection[使用者在下拉選單選擇起點站與終點站]
-    Selection --> Prefs[勾選偏好的交通工具: 捷運/公車/YouBike/火車]
-    Prefs --> Submit[點擊「開始規劃路徑」按鈕]
+flowchart LR
+    %% 定義節點樣式
+    classDef startEnd fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef process fill:#bbf,stroke:#333,stroke-width:1px;
+    classDef decision fill:#ffb,stroke:#333,stroke-width:1px;
+
+    Start([使用者開啟網頁]) --> Home[首頁 /]
+    Home --> ChooseAction{選擇操作}
     
-    Submit --> Val{輸入驗證}
-    Val -->|起訖點相同| ErrSame[頁面顯示警告: 起點與終點不能相同] --> Selection
-    Val -->|通過| Calc[後端 Dijkstra 演算法計算最佳路線]
-    
-    Calc --> ResultCheck{是否有可行路線?}
-    ResultCheck -->|否| ErrNoPath[頁面顯示提示: 無法在目前偏好下找到合適路線] --> Prefs
-    ResultCheck -->|是| Render[前端渲染結果]
-    
-    Render --> Sidebar[左側顯示預估時間、費用、轉乘次數與詳細時間軸]
-    Render --> MapDraw[右側 Leaflet 地圖標註起訖點並繪製分色運具折線]
-    
-    Sidebar --> Interaction[使用者點擊地圖標記或路線線段查看氣泡提示]
-    MapDraw --> Interaction
-    Interaction --> End([完成查詢 / 重新查詢])
+    %% 操作 A: 路線規劃
+    ChooseAction -->|規劃路線| RouteSearch[輸入/自動定位起訖點]
+    RouteSearch --> SubmitSearch[送出路線規劃]
+    SubmitSearch --> ResultPage[顯示結果頁 /transit/result]
+    ResultPage --> ViewResult[查看總時間、車資與替代方案]
+    ResultPage --> ActionOnResult{後續操作？}
+    ActionOnResult -->|收藏路線| SaveRoute[點擊收藏 /transit/history/add]
+    ActionOnResult -->|返回首頁| Home
+    SaveRoute --> Home
+
+    %% 操作 B: 地圖檢視
+    ChooseAction -->|檢視附近站點| MapPage[地圖頁 /map]
+    MapPage --> AutoLocate[瀏覽器自動定位]
+    AutoLocate --> ShowStops[顯示附近大眾運輸站點]
+    ShowStops --> ClickStop[點選站點查看即時資訊]
+
+    %% 操作 C: 即時到站查詢
+    ChooseAction -->|即時到站查詢| RealtimeSearch[即時到站查詢 /transit/arrival]
+    RealtimeSearch --> InputRoute[輸入公車/捷運路線]
+    InputRoute --> ShowArrival[顯示即時預估到站時間]
+
+    %% 操作 D: 歷史紀錄與收藏
+    ChooseAction -->|使用歷史/收藏| ViewHistory[查看歷史紀錄與常用路線]
+    ViewHistory --> HistoryAction{操作紀錄？}
+    HistoryAction -->|點擊紀錄| QuickSearch[一鍵填入起訖點並搜尋]
+    HistoryAction -->|刪除紀錄| DeleteHistory[點擊刪除 /transit/history/delete]
+    QuickSearch --> SubmitSearch
+    DeleteHistory --> Home
 ```
 
 ---
 
-## 二、系統序列圖 (Sequence Diagram)
+## 2. 系統序列圖 (Sequence Diagram)
 
-這張序列圖描述當使用者提交查詢時，資料如何在瀏覽器、Flask 路由控制、Dijkstra 演算法服務與地圖渲染庫之間傳遞：
+此圖描述「使用者點擊收藏路線（新增功能）」到「資料存入 SQLite 資料庫」的完整交互流程，涵蓋瀏覽器、Flask Route、Model 與資料庫。
 
 ```mermaid
 sequenceDiagram
     actor User as 使用者
-    participant Browser as 瀏覽器 (HTML/JS)
-    participant Flask as Flask 路由控制器 (f03_routing)
-    participant Service as 轉乘演算服務 (route_calculator)
-    participant Leaflet as Leaflet.js 地圖庫
-
-    User->>Browser: 選擇起訖站、勾選交通偏好並點擊規劃
-    Browser->>Flask: HTTP POST /f03/planner (傳送 start_point, end_point, preferences)
-    Note over Flask: 執行防呆驗證<br/>(檢查起訖是否相同)
+    participant Browser as 瀏覽器 (Browser)
+    participant Flask as Flask Controller (routes/transit.py)
+    participant Model as Model (models/route_history.py)
+    participant DB as SQLite 資料庫 (database.db)
     
-    alt 驗證通過
-        Flask->>Service: calculate_best_route(start, end, preferences)
-        Note over Service: 1. 根據 preferences 過濾圖資邊<br/>2. Dijkstra 演算法搜尋最短時間路徑
-        Service-->>Flask: 回傳最優路線字典 (含 total_time, total_cost, steps, route_coords)
-        Flask->>Browser: 載入模板渲染 HTML，並將 route_result 轉成 JSON 嵌入 JS 區塊
-        Browser->>Leaflet: 初始化地圖，載入 CartoDB 圖磚
-        Browser->>Leaflet: 標註起訖點 Marker 並為 steps 繪製對應色彩的 Polyline
-        Leaflet-->>User: 呈現視覺化地圖與路線詳細時間軸
-    else 驗證失敗 (起訖相同)
-        Flask-->>Browser: 傳回錯誤訊息 error
-        Browser-->>User: 顯示警告警告框
-    end
+    User->>Browser: 在結果頁點擊「收藏路線」按鈕
+    Browser->>Flask: POST /transit/history/add (起點、終點、路線詳情)
+    activate Flask
+    
+    Note over Flask: 處理請求參數，確認使用者身分
+    Flask->>Model: RouteHistory.add_to_favorite(user_id, start, end, details)
+    activate Model
+    
+    Model->>DB: INSERT INTO route_history (user_id, start_point, end_point, is_favorite, ...)
+    activate DB
+    DB-->>Model: 回傳插入成功與資料列 ID
+    deactivate DB
+    
+    Model-->>Flask: 回傳已建立之 RouteHistory 實體物件
+    deactivate Model
+    
+    Flask-->>Browser: 302 Redirect to / (重新導向至首頁)
+    deactivate Flask
+    
+    Browser->>Flask: GET / (請求首頁)
+    activate Flask
+    Flask-->>Browser: 回傳 HTML (包含更新後的常用路線列表)
+    deactivate Flask
+    
+    Browser-->>User: 畫面重新載入，顯示新收藏的常用路線
 ```
 
 ---
 
-## 三、功能清單與對照表
+## 3. 功能清單對照表
 
-以下為 F-03 模組規劃之 URL 路由與 HTTP 動作對照：
-
-| 功能編號 | 功能名稱 | URL 路徑 | HTTP 方法 | 後端處理函式 | 前端對應視圖 / 模板 |
-| --- | --- | --- | --- | --- | --- |
-| **F-03** | 跨運具轉乘首頁與地標檢視 | `/f03/planner` | **GET** | `route_planner()` | `f03/route_planner.html` (地圖初始呈現) |
-| **F-03** | 執行轉乘路徑演算與繪圖 | `/f03/planner` | **POST** | `route_planner()` | `f03/route_planner.html` (地圖繪製折線與時間軸) |
+| 功能模組 | 功能描述 | URL 路徑 | HTTP 方法 | 對應後端檔案與 View |
+| :--- | :--- | :--- | :--- | :--- |
+| **首頁模組 (Main)** | 顯示搜尋表單與歷史/收藏列表 | `/` | `GET` | [main.py](file:///c:/Users/User/Desktop/create-app/app/routes/main.py) <br>渲染 `index.html` |
+| **地圖模組 (Main)** | 大眾運輸檢視圖 (地圖頁面) | `/map` | `GET` | [main.py](file:///c:/Users/User/Desktop/create-app/app/routes/main.py) <br>渲染 `map.html` |
+| **交通核心 (Transit)** | 執行起訖點路線規劃搜尋 | `/transit/search` | `POST` | [transit.py](file:///c:/Users/User/Desktop/create-app/app/routes/transit.py) <br>呼叫外部 API 並處理邏輯 |
+| **交通核心 (Transit)** | 顯示路線規劃與時間預估結果 | `/transit/result` | `GET` | [transit.py](file:///c:/Users/User/Desktop/create-app/app/routes/transit.py) <br>渲染 `result.html` |
+| **交通核心 (Transit)** | 即時到站時間查詢 | `/transit/arrival` | `GET` | [transit.py](file:///c:/Users/User/Desktop/create-app/app/routes/transit.py) <br>取得特定公車/捷運即時到站資訊 |
+| **歷史與收藏 (History)** | 新增常用路線/收藏 | `/transit/history/add` | `POST` | [transit.py](file:///c:/Users/User/Desktop/create-app/app/routes/transit.py) <br>呼叫 [route_history.py](file:///c:/Users/User/Desktop/create-app/app/models/route_history.py) 寫入 |
+| **歷史與收藏 (History)** | 刪除歷史紀錄或常用路線 | `/transit/history/delete/<int:id>` | `POST` | [transit.py](file:///c:/Users/User/Desktop/create-app/app/routes/transit.py) <br>呼叫 [route_history.py](file:///c:/Users/User/Desktop/create-app/app/models/route_history.py) 移除 |
