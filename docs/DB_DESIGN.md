@@ -4,7 +4,8 @@
 ```mermaid
 erDiagram
     STATION {
-        string station_id PK
+        int id PK
+        string station_id UK
         string station_name
         float lat
         float lon
@@ -20,8 +21,9 @@ erDiagram
 
 ## 2. 資料表詳細說明
 ### STATION (站點快取表)
-儲存從 TDX 取得的站點基礎資訊，避免重複請求。
-- `station_id`: 站點唯一識別碼 (PK)
+儲存從 TDX 取得的站點裝修資訊，避免重複請求。
+- `id`: 自動遞增 ID (PK)
+- `station_id`: 站點唯一識別碼 (UK)
 - `station_name`: 站點名稱
 - `lat`: 緯度
 - `lon`: 經度
@@ -36,7 +38,8 @@ erDiagram
 ## 3. SQL 建表語法 (database/schema.sql)
 ```sql
 CREATE TABLE IF NOT EXISTS stations (
-    station_id TEXT PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    station_id TEXT UNIQUE NOT NULL,
     station_name TEXT NOT NULL,
     lat REAL NOT NULL,
     lon REAL NOT NULL,

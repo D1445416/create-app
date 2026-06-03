@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask
 import sqlite3
 import os
 
@@ -7,14 +7,15 @@ from utils.pricing import calculate_total_fare
 from utils.tdx_time import get_estimated_time
 
 app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
-app.register_blueprint(main_bp)
 app.config['DATABASE'] = os.path.join(os.getcwd(), 'instance', 'database.db')
+app.register_blueprint(main_bp)
 
 def init_db():
+    """Initialize and seed the SQLite database."""
     if not os.path.exists('instance'):
         os.makedirs('instance')
     db = sqlite3.connect(app.config['DATABASE'])
-    with open('database/schema.sql', 'r') as f:
+    with open('database/schema.sql', 'r', encoding='utf-8') as f:
         db.cursor().executescript(f.read())
     
     # Check if stations table is empty or has mock stations only
@@ -133,13 +134,14 @@ def calculate_trip():
             "message": f"Internal Server Error: {str(e)}"
         }), 500
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+# Initialize DB if it doesn't exist yet (works for both python app.py and flask run)
+if not os.path.exists(app.config['DATABASE']):
+    init_db()
 
 # Auto-initialize SQLite database if it doesn't exist
 if not os.path.exists(app.config['DATABASE']):
     init_db()
 
 if __name__ == '__main__':
+    app.run(debug=True)
     app.run(debug=True, host='0.0.0.0', port=5000)
