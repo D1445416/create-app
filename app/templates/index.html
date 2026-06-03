@@ -1,5 +1,127 @@
 {% extends "base.html" %}
 
+{% block title %}首頁 - 台中大眾運輸站點擁擠度系統{% endblock %}
+
+{% block content %}
+<div class="row g-4 mt-2">
+    <!-- 左側篩選與定位控制面板 -->
+    <div class="col-lg-4">
+        <div class="glass-panel p-4 mb-4">
+            <h4 class="mb-3 text-white">🔍 站點查詢與過濾</h4>
+            <form action="/" method="GET" class="d-flex flex-column gap-3">
+                <div>
+                    <label class="form-label text-muted">站點名稱搜尋</label>
+                    <input type="text" name="search" class="form-control bg-dark border-secondary text-white" 
+                           placeholder="輸入捷運站或公車站..." value="{{ search }}">
+                </div>
+                <div>
+                    <label class="form-label text-muted">運輸工具類型</label>
+                    <select name="type" class="form-select bg-dark border-secondary text-white">
+                        <option value="" {% if not type %}selected{% endif %}>全部</option>
+                        <option value="metro" {% if type == 'metro' %}selected{% endif %}>捷運 (Metro)</option>
+                        <option value="bus" {% if type == 'bus' %}selected{% endif %}>公車 (Bus)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label text-muted">擁擠度狀態</label>
+                    <select name="level" class="form-select bg-dark border-secondary text-white">
+                        <option value="" {% if not level %}selected{% endif %}>全部</option>
+                        <option value="green" {% if level == 'green' %}selected{% endif %}>通暢 (綠色)</option>
+                        <option value="orange" {% if level == 'orange' %}selected{% endif %}>普通 (橘色)</option>
+                        <option value="red" {% if level == 'red' %}selected{% endif %}>擁擠 (紅色)</option>
+                    </select>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1 py-2 fw-semibold">套用篩選</button>
+                    <a href="/" class="btn btn-outline-secondary py-2">重置</a>
+                </div>
+            </form>
+        </div>
+
+        <div class="glass-panel p-4">
+            <h4 class="mb-3 text-white">📍 周邊站點推薦</h4>
+            <p class="text-muted small mb-3">使用您的 GPS 定位，即時運算距離您最近的 5 個台中捷運或公車站點人潮擁擠度。</p>
+            <button id="btn-gps-recommend" class="btn btn-outline-info w-100 py-2.5 fw-semibold">📍 GPS 定位推薦周邊站點</button>
+            <div id="gps-recommend-list" class="mt-3">
+                <div class="text-center p-3 text-muted">
+                    <small>點擊上方按鈕取得您最近鄰近的站點</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右側站點列表 -->
+    <div class="col-lg-8">
+        <div class="glass-panel p-4">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+                <h3 class="mb-0 text-white">🚉 大眾運輸站點列表</h3>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-secondary text-white-50 px-3 py-2">符合結果：{{ stations|length }} 站</span>
+                </div>
+            </div>
+            
+            <div class="row g-3">
+                {% if stations %}
+                    <div class="list-group list-group-flush gap-3 w-100 px-2">
+                        {% for s in stations %}
+                            <!-- 站點單一玻璃面板卡片 -->
+                            <a href="/station/{{ s.station_id }}" 
+                               class="list-group-item list-group-item-action glass-panel border-0 p-3.5 d-flex align-items-center justify-content-between text-decoration-none">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="station-icon text-center fs-3">
+                                        {% if s.type == 'metro' %}🚇{% else %}🚌{% endif %}
+                                    </div>
+                                    <div>
+                                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                                            <h5 class="mb-0 text-white fw-bold">{{ s.name }}</h5>
+                                            {% if s.type == 'metro' %}
+                                                <span class="badge badge-metro">捷運</span>
+                                            {% else %}
+                                                <span class="badge badge-bus">公車</span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="text-muted small mt-1">
+                                            <span>{{ s.route_name }}</span>
+                                            <span class="mx-1.5">|</span>
+                                            <span>代碼: {{ s.station_id }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-items-center gap-3">
+                                    <!-- 擁擠度紅橘綠核心視覺指標 -->
+                                    {% if s.level == 'red' %}
+                                        <span class="crowd-indicator crowd-red">擁擠</span>
+                                    {% elif s.level == 'orange' %}
+                                        <span class="crowd-indicator crowd-orange">普通</span>
+                                    {% else %}
+                                        <span class="crowd-indicator crowd-green">通暢</span>
+                                    {% endif %}
+                                    
+                                    <div class="text-end text-muted d-none d-sm-block" style="min-width: 80px;">
+                                        <small class="d-block text-white-50">{{ s.passenger_count }} 人</small>
+                                        <small class="d-block" style="font-size: 0.7rem;">
+                                            {% if s.last_updated %}
+                                                {{ s.last_updated[11:16] }} 更新
+                                            {% else %}
+                                                無快取
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    <div class="text-info fs-5">›</div>
+                                </div>
+                            </a>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <!-- 查無結果 -->
+                    <div class="col-12 text-center py-5 text-muted">
+                        <span class="fs-1 d-block mb-3">🔍</span>
+                        <h4 class="text-white mb-2">查無符合條件的站點</h4>
+                        <p class="small">請嘗試更換搜尋關鍵字，或放寬您的篩選過濾條件。</p>
+                        <a href="/" class="btn btn-sm btn-outline-info mt-3 px-4">清除篩選</a>
+                    </div>
+                {% endif %}
+            </div>
 {% block content %}
 <div id="main-container">
     <!-- Map Container -->
