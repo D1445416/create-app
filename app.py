@@ -1,17 +1,17 @@
 import os
+from dotenv import load_dotenv
 from app import create_app
+#　pip install flask
+#　pip install python-dotenv
 
-# 建立 Flask 應用程式實例
+# 載入 .env 檔案的環境變數
+load_dotenv()
+
 app = create_app()
 
 if __name__ == '__main__':
-    # 支援以 python app.py 啟動本地偵錯伺服器
-    port = int(os.getenv('PORT', 5000))
-    debug_mode = os.getenv('FLASK_DEBUG', 'True').lower() in ('true', '1', 'yes')
+    host = os.environ.get('HOST', '127.0.0.1')
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_DEBUG', 'True') == 'True'
     
-    print(f"==================================================")
-    print(f" 台中大眾運輸站點擁擠度系統本地偵錯伺服器啟動中...")
-    print(f" 網址: http://127.0.0.1:{port}")
-    print(f"==================================================")
-    
-    app.run(host='0.0.0.0', port=port, debug=debug_mode)
+    app.run(host=host, port=port, debug=debug)

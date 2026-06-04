@@ -1,189 +1,124 @@
-# Flask 路由與頁面設計說明文件 (ROUTES.md)
+# 路由與頁面設計文件 (Routes & Page Design) - 台中大眾運輸交通整合APP系統
 
-本文件根據 [PRD.md](file:///c:/Users/User/create-app/docs/PRD.md)、[ARCHITECTURE.md](file:///c:/Users/User/create-app/docs/ARCHITECTURE.md) 與 [DB_DESIGN.md](file:///c:/Users/User/create-app/docs/DB_DESIGN.md)，規劃**台中大眾運輸站點狀態與擁擠度顯示系統**的網頁路由設計與 API 端點規範。
-
-所有路由皆符合 RESTful 架構慣例，並以 Flask Blueprint 架構進行封裝，實現模組化管理。
+本文件詳細規劃本系統的 Flask 路由設計（Routes/Controllers）與前端頁面結構，並建立與資料庫 Model 及前端 UI 模板的對照關係。
 
 ---
 
-## 1. 路由總覽表格
+## 1. 路由總覽表
 
-| 功能 | HTTP 方法 | URL 路徑 | 對應 Jinja2 模板 / 回傳格式 | 說明 |
-| :--- | :---: | :--- | :--- | :--- |
-| **首頁（站點與擁擠度列表）** | `GET` | `/` | `templates/index.html` | 顯示所有站點清單，依擁擠度以紅、橘、綠三色指標呈現。支援關鍵字搜尋及路線/擁擠度篩選。 |
-| **站點詳細頁面** | `GET` | `/station/<station_id>` | `templates/detail.html` | 顯示單一捷運或公車站點的詳細即時擁擠人潮、座標及大眾運輸資訊。 |
-| **GPS 定位周邊站點推薦 API**| `GET` | `/api/stations/nearby` | `JSON 陣列` | 前端以 AJAX 調用，傳入經緯度，由後端運算並回傳距離最近的 5 個站點及其擁擠度。 |
-| **強制更新快取 API** | `POST` | `/api/stations/refresh`| `JSON 物件` | 後端系統排程或前端點擊重整時，強制調用 TDX API 更新資料庫內的快取資料。 |
+我們將路由劃分為三個主要模組：**主頁面與地圖 (Main)**、**交通核心業務 (Transit)** 以及 **身分驗證 (Auth)**。
+
+| 功能模組 | HTTP 方法 | URL 路徑 | 對應 Jinja2 模板 | 說明 |
+| :--- | :--- | :--- | :--- | :--- |
+| **首頁 (Main)** | GET | `/` | [index.html](file:///c:/Users/User/Desktop/create-app/app/templates/index.html) | 顯示首頁搜尋表單、歷史搜尋紀錄與常用最愛路線 |
+| **地圖 (Main)** | GET | `/map` | [map.html](file:///c:/Users/User/Desktop/create-app/app/templates/map.html) | 顯示大眾運輸地圖檢視圖（捷運、公車、YouBike站點） |
+| **交通 (Transit)** | POST | `/transit/search` | — (重導向至結果頁) | 接收起訖點搜尋條件，呼叫 TDX API 並將紀錄寫入 DB |
+| **交通 (Transit)** | GET | `/transit/result` | [result.html](file:///c:/Users/User/Desktop/create-app/app/templates/result.html) | 顯示路線規劃結果（車程時間、車資、替代方案） |
+| **交通 (Transit)** | GET | `/transit/arrival` | [arrival.html](file:///c:/Users/User/Desktop/create-app/app/templates/arrival.html) | 即時公車/捷運到站時間查詢頁面 |
+| **歷史 (Transit)** | POST | `/transit/history/add` | — (重導向至首頁) | 將指定搜尋紀錄標記為「常用最愛」或新增最愛 |
+| **歷史 (Transit)** | POST | `/transit/history/delete/<id>` | — (重導向至首頁) | 刪除指定的搜尋歷史紀錄或最愛收藏 |
+| **驗證 (Auth)** | GET | `/register` | [register.html](file:///c:/Users/User/Desktop/create-app/app/templates/register.html) | 顯示使用者註冊頁面 |
+| **驗證 (Auth)** | POST | `/register` | — (重導向至登入/首頁) | 接收註冊表單，寫入 `user` 表 |
+| **驗證 (Auth)** | GET | `/login` | [login.html](file:///c:/Users/User/Desktop/create-app/app/templates/login.html) | 顯示使用者登入頁面 |
+| **驗證 (Auth)** | POST | `/login` | — (重導向至首頁) | 驗證使用者帳密，寫入 session |
+| **驗證 (Auth)** | POST | `/logout` | — (重導向至首頁) | 清除 session 登出使用者 |
 
 ---
 
-## 2. 每個路由的詳細說明
+## 2. 路由詳細說明
 
-### A. 首頁 (站點與擁擠度列表)
-*   **網址路徑**：`/`
-*   **HTTP 方法**：`GET`
-*   **輸入參數** (Query Parameters)：
-    *   `search` (string, 選填)：關鍵字搜尋站點名稱。例如 `?search=市政府`
-    *   `type` (string, 選填)：篩選站點類型。可選為 `'metro'` (捷運) 或 `'bus'` (公車)。
-    *   `level` (string, 選填)：篩選擁擠度顏色。可選為 `'green'`, `'orange'`, `'red'`。
+### 2.1 主頁面模組 (`main_bp`)
+
+#### GET `/`
+*   **輸入參數**：無（從 `session['user_id']` 判斷當前登入狀態）
 *   **處理邏輯**：
-    1.  呼叫 `Station.get_all_with_crowdedness()` 獲取所有站點基本資料與其擁擠度快取。
-    2.  根據前端傳入的 `search`、`type`、`level` 參數，對結果清單進行篩選過濾。
-    3.  將最終過濾後的站點清單傳入首頁模板進行渲染。
-*   **輸出**：
-    *   `templates/index.html` (渲染 HTML)
-*   **錯誤處理**：
-    *   若資料庫連線失敗，則渲染首頁並於前端彈出 Bootstrap Toast 警告訊息 "系統資料讀取失敗，請稍後再試。"。
+    *   若使用者已登入，呼叫 `RouteHistoryModel.get_by_user_id(user_id)` 撈取該使用者的歷史紀錄與收藏路線。
+*   **輸出**：渲染 `index.html`（傳入 `history_list` 與 `favorite_list`）
+*   **錯誤處理**：若資料庫連線失敗，回傳 500。
+
+#### GET `/map`
+*   **輸入參數**：`lat`、`lng`（選填，前端 Geolocation 取得的座標）
+*   **處理邏輯**：若有座標傳入，計算周邊站點；若無，預設顯示台中市中心。
+*   **輸出**：渲染 `map.html`。
 
 ---
 
-### B. 站點詳細頁面
-*   **網址路徑**：`/station/<station_id>`
-*   **HTTP 方法**：`GET`
-*   **輸入參數** (Path Parameters)：
-    *   `station_id` (string, 必填)：站點唯一 ID，如 `BL01` (捷運市政府站)。
+### 2.2 交通業務模組 (`transit_bp`)
+
+#### POST `/transit/search`
+*   **輸入參數**：表單欄位 `start_point`、`end_point`（必填）
 *   **處理邏輯**：
-    1.  呼叫 `Station.get_by_id(station_id)` 取得站點基本資料。若無此站點，拋出 `404 Not Found`。
-    2.  呼叫 `CrowdednessCache.is_cache_valid(station_id, cache_duration_seconds=60)` 檢查快取是否仍在時效（60 秒）內。
-    3.  若**快取過期**，呼叫 `tdx_api` 服務，向交通部 TDX API 請求最新數據，並呼叫 `CrowdednessCache.create_or_update()` 寫入 SQLite 快取。
-    4.  若**快取有效**，則直接獲取 `CrowdednessCache.get_by_station_id(station_id)`。
-    5.  將資料傳入 `detail.html` 渲染頁面。
-*   **輸出**：
-    *   `templates/detail.html` (渲染 HTML)
+    1.  檢查欄位是否為空。
+    2.  呼叫外部 TDX API 計算最佳大眾運輸規劃與替代方案。
+    3.  若使用者已登入，呼叫 `RouteHistoryModel.create()` 儲存搜尋歷史至 DB。
+    4.  將路線規劃結果暫存至 `session['search_result']`。
+*   **輸出**：重導向 (302) 至 `/transit/result`。
 *   **錯誤處理**：
-    *   若 `station_id` 不存在，呼叫 `abort(404)`，渲染 `templates/404.html`。
-    *   若 TDX API 連線失效或回傳異常，在頁面顯示資料庫最後快取成功的數據，並顯示警告標註："目前無法連接 API 獲取最新狀態，以下為 {last_updated} 的歷史快取資料"。
+    *   起訖點為空 ➡️ 導回首頁並拋出 Flash 錯誤訊息。
+    *   TDX API 逾時/失敗 ➡️ 導回首頁提示「無法取得路線資料」。
+
+#### GET `/transit/result`
+*   **輸入參數**：無（從 `session['search_result']` 讀取）
+*   **處理邏輯**：讀取暫存的搜尋規劃，提供票價、路程時間與各段交通工具明細。
+*   **輸出**：渲染 `result.html`。
+
+#### GET `/transit/arrival`
+*   **輸入參數**：`route_name`（選填，如 `"300"`）
+*   **處理邏輯**：向 TDX API 查詢該公車路線或捷運站的即時預估到站時間。
+*   **輸出**：渲染 `arrival.html`。
+
+#### POST `/transit/history/add`
+*   **輸入參數**：表單欄位 `start_point`、`end_point`、`details`
+*   **處理邏輯**：
+    *   若未登入，提示需登入。
+    *   已登入則呼叫 `RouteHistoryModel.create(..., is_favorite=1)` 或 `RouteHistoryModel.update_favorite()`。
+*   **輸出**：重導向至 `/`，並顯示 Flash「已成功加入常用路線」。
+
+#### POST `/transit/history/delete/<int:history_id>`
+*   **輸入參數**：URL 參數 `history_id`
+*   **處理邏輯**：呼叫 `RouteHistoryModel.delete(history_id)`。
+*   **輸出**：重導向至 `/`。
 
 ---
 
-### C. GPS 定位周邊推薦站點 API
-*   **網址路徑**：`/api/stations/nearby`
-*   **HTTP 方法**：`GET`
-*   **輸入參數** (Query Parameters)：
-    *   `lat` (float, 必填)：使用者目前的經度（緯度座標）。
-    *   `lng` (float, 必填)：使用者目前的緯度（經度座標）。
-    *   `limit` (int, 選填)：回傳數量上限，預設為 5。
-*   **處理邏輯**：
-    1.  從網址參數取得並校驗 `lat`、`lng`、`limit` 的型別，防止 SQL 注入與型別錯誤。
-    2.  呼叫 `Station.get_nearby(lat, lng, limit)` 計算空間距離排序，並帶出對應的 `level` 擁擠度。
-    3.  轉化成 JSON 陣列格式輸出。
-*   **輸出** (Response Body)：
-    *   `HTTP 200` 成功：
-        ```json
-        [
-          {
-            "station_id": "BL01",
-            "name": "市政府站",
-            "type": "metro",
-            "route_name": "捷運綠線",
-            "lat": 24.162,
-            "lng": 120.647,
-            "level": "red",
-            "passenger_count": 350,
-            "last_updated": "2026-05-21T08:30:00"
-          }
-        ]
-        ```
-*   **錯誤處理**：
-    *   經緯度漏傳或型別非數字時：回傳 `HTTP 400 Bad Request`，JSON：`{"error": "Missing or invalid latitude/longitude coordinates"}`。
-    *   伺服器內部錯誤：回傳 `HTTP 500 Internal Server Error`，JSON：`{"error": "Internal server error"}`。
+### 2.3 身分驗證模組 (`auth_bp`)
 
----
-
-### D. 強制更新快取 API
-*   **網址路徑**：`/api/stations/refresh`
-*   **HTTP 方法**：`POST`
-*   **輸入參數** (JSON Body, 選填)：
-    *   `station_id` (string, 選填)：可指定僅更新單一站點；若省略則更新全站。
+#### GET & POST `/register`
+*   **輸入參數**：表單欄位 `username`、`password`、`email`
 *   **處理邏輯**：
-    1.  解析 JSON 請求。
-    2.  調用 `tdx_api.py` 去外部 TDX API 取得最新的即時資料。
-    3.  利用 SQLite 的 `UPSERT` 寫入 `crowdedness_cache` 並標記 `last_updated` 時間。
-*   **輸出** (Response Body)：
-    *   `HTTP 200` 成功：`{"success": true, "updated_count": 1}`
-*   **錯誤處理**：
-    *   若 TDX API 連線失效或認證 Token 錯誤：回傳 `HTTP 502 Bad Gateway`，JSON：`{"error": "TDX API remote connection failure"}`。
-    *   若指定的 `station_id` 在 `stations` 表中不存在：回傳 `HTTP 404 Not Found`，JSON：`{"error": "Station ID not found"}`。
+    *   GET：直接渲染註冊表單。
+    *   POST：使用 `generate_password_hash` 加密密碼，呼叫 `UserModel.create()` 寫入。
+*   **輸出**：註冊成功重導向至 `/login`；失敗則帶回註冊頁面並顯示錯誤。
+
+#### GET & POST `/login`
+*   **輸入參數**：表單欄位 `username`、`password`
+*   **處理邏輯**：
+    *   GET：直接渲染登入表單。
+    *   POST：呼叫 `UserModel.get_by_username()`，利用 `check_password_hash` 比對密碼。驗證通過後，將 `id` 與 `username` 寫入 `session`。
+*   **輸出**：成功導向至 `/`；失敗顯示「帳號或密碼錯誤」。
+
+#### POST `/logout`
+*   **處理邏輯**：清空 `session` 中使用者的登入資訊。
+*   **輸出**：重導向至 `/`。
 
 ---
 
 ## 3. Jinja2 模板清單
 
-系統採用 Jinja2 模板引擎進行伺服器端渲染 (SSR)，規劃建立的 HTML 模板如下：
+所有模板皆存放在 `app/templates/` 目錄。我們規劃了共同的基礎母版以維護版面一致性。
 
-1.  **[templates/base.html](file:///c:/Users/User/create-app/app/templates/base.html)**
-    *   **類型**：基礎佈局共用模板 (Base Layout)
-    *   **職責**：包含網頁的全域 `<head>`、全域 CSS 樣式表 ( style.css )、網站的通用導覽列 (Header)、導覽頁尾 (Footer)、全域 Javascript ( main.js ) 以及 Bootstrap 框架。
-    *   **區塊 (Blocks)**：定義 `{% block title %}{% endblock %}` 與 `{% block content %}{% endblock %}` 供子模板繼承填入。
-
-2.  **[templates/index.html](file:///c:/Users/User/create-app/app/templates/index.html)**
-    *   **繼承**：`base.html`
-    *   **職責**：**系統首頁**。
-    *   **元件**：
-        *   搜尋輸入框與篩選按鈕（過濾捷運/公車/擁擠顏色）。
-        *   「GPS 周邊推薦站點」專屬面板（點擊後以 Vanilla JS 調用瀏覽器 API 並渲染結果）。
-        *   站點與擁擠度卡片列表（以紅、橘、綠三種顏色邊框或標籤顯示）。
-
-3.  **[templates/detail.html](file:///c:/Users/User/create-app/app/templates/detail.html)**
-    *   **繼承**：`base.html`
-    *   **職責**：**站點詳情頁**。
-    *   **元件**：
-        *   站點基本資訊展示（包含大眾運輸類型徽章、所屬路線）。
-        *   詳細人潮擁擠狀況、載客人數、資料最後更新時間戳記。
-        *   手動重新整理按鈕（發送 AJAX POST 觸發強製重新整理並動態更新資訊）。
-        *   「回首頁」連結。
-
-4.  **[templates/404.html](file:///c:/Users/User/create-app/app/templates/404.html)**
-    *   **繼承**：`base.html`
-    *   **職責**：**404 錯誤頁面**。當使用者輸入不存在的站點 ID 或存取不當網址時，顯示具設計感的人性化錯誤提示與導回首頁按鈕。
-
----
-
-## 4. 路由骨架程式碼結構
-
-已經在 [app/routes/](file:///c:/Users/User/create-app/app/routes/) 資料夾中建立了控制器 (Controller) 的路由骨架檔案：
-
-*   **套件匯出**：[app/routes/\_\_init\_\_.py](file:///c:/Users/User/create-app/app/routes/__init__.py)
-*   **路由定義**：[app/routes/views.py](file:///c:/Users/User/create-app/app/routes/views.py)
-    *   已完整規劃 `@views_bp.route` 裝飾器、RESTful 方法與詳細的 Traditional Chinese Docstrings。函式主體先以 `pass` 預留，將於後續開發階段進行具體實作。
-
-> [!TIP]
-> **RESTful 的 URL 設計優點**：
-> 1. 首頁 `/` 使用 `GET` 並搭配 Query 參數處理篩選，對 SEO 與網址書籤功能極為友善。
-> 2. API 端點 `/api/stations/nearby` 使用 `GET` 並附帶參數，符合取得資料的冪等性 (Idempotency)。
-> 3. 強制刷新快取 API `/api/stations/refresh` 涉及寫入與快取狀態變更，故使用 `POST` 方法。
-# 路由設計文件 (ROUTES)
-
-## 1. 路由總覽表格
-| 功能 | HTTP 方法 | URL 路徑 | 對應模板 | 說明 |
-| --- | --- | --- | --- | --- |
-| 首頁 (地圖) | GET | / | templates/index.html | 顯示 Leaflet 地圖與側邊欄 |
-| 站點詳情 API | GET | /api/station/<id> | — | 返回站點基本資訊與即時到站 JSON |
-| 收藏列表 | GET | /favorites | templates/favorites.html | 顯示使用者收藏的站點 |
-| 加入收藏 | POST | /favorites/add | — | 將站點加入資料庫 |
-| 刪除收藏 | POST | /favorites/delete/<id> | — | 從資料庫刪除收藏 |
-
-## 2. 詳細路由說明
-### 首頁
-- **URL**: `/`
-- **邏輯**: 載入 `index.html`，初始化 Leaflet 地圖。
-- **輸出**: `index.html`
-
-### 站點詳情 API
-- **URL**: `/api/station/<id>`
-- **輸入**: `id` (站點 ID)
-- **邏輯**:
-    1. 從 DB 獲取站點位置。
-    2. 調用 TDX API 獲取即時公車/捷運到站數據。
-    3. 整合後返回 JSON。
-- **輸出**: JSON 數據
-
-### 收藏管理
-- **URL**: `/favorites/add`, `/favorites/delete/<id>`
-- **邏輯**: 呼叫 Favorite Model 進行資料庫操作。
-- **輸出**: 重導向或成功訊息 JSON。
-
-## 3. Jinja2 模板清單
-- `base.html`: 基礎模板 (含 Navbar, Footer)
-- `index.html`: 地圖主介面
-- `favorites.html`: 收藏列表頁面
+1.  **[base.html](file:///c:/Users/User/Desktop/create-app/app/templates/base.html)**
+    *   **角色**：基礎母版 (Base Template)
+    *   **內容**：HTML 標頭、CSS/JS 靜態資源引入、導覽列（包含首頁、地圖、即時到站連結與使用者登入/登出狀態按鈕）、以及頁尾。
+2.  **[index.html](file:///c:/Users/User/Desktop/create-app/app/templates/index.html)**
+    *   **角色**：首頁 (首頁搜尋表單與歷史/最愛) — 繼承 `base.html`
+3.  **[map.html](file:///c:/Users/User/Desktop/create-app/app/templates/map.html)**
+    *   **角色**：地圖檢視頁面 — 繼承 `base.html`
+4.  **[result.html](file:///c:/Users/User/Desktop/create-app/app/templates/result.html)**
+    *   **角色**：路線規劃結果顯示頁面 — 繼承 `base.html`
+5.  **[arrival.html](file:///c:/Users/User/Desktop/create-app/app/templates/arrival.html)**
+    *   **角色**：即時到站查詢頁面 — 繼承 `base.html`
+6.  **[login.html](file:///c:/Users/User/Desktop/create-app/app/templates/login.html)**
+    *   **角色**：登入頁面 — 繼承 `base.html`
+7.  **[register.html](file:///c:/Users/User/Desktop/create-app/app/templates/register.html)**
+    *   **角色**：註冊頁面 — 繼承 `base.html`

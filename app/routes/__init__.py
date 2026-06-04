@@ -1,6 +1,10 @@
-# 路由套件初始化，導出 Blueprint 供 app.py 註冊使用
-# 檔案路徑: app/routes/__init__.py
+from app.routes.main import main_bp
+from app.routes.transit import transit_bp
+from app.routes.auth import auth_bp
 
-from .views import views_bp
-
-__all__ = ['views_bp']
+# 匯出所有的 Blueprint 方便一併註冊
+ALL_BLUEPRINTS = [
+    main_bp,
+    transit_bp,
+    auth_bp
+]
