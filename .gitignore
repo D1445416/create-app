@@ -1,6 +1,17 @@
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+
+# SQLite database files
 instance/
-.env
+*.db
+
+# Environments
 .venv/
+venv/
+ENV/
+env/
+
+# OS files
 .DS_Store
+Thumbs.db

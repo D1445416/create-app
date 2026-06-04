@@ -3,56 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="台中大眾運輸交通整合平台，提供公車與捷運即時到站雙運具動態、路線替代方案規劃、個人化站點收藏與價格/乘車時間精準試算，為您省去候車焦慮。">
-    <meta name="keywords" content="台中大眾運輸, 台中公車, 台中捷運, 雙十優惠, YouBike 2.0, 路線規劃, 即時到站, 轉乘資訊">
-    <title>{% block title %}台中大眾運輸交通整合 APP - 即時動態看板與轉乘路網{% endblock %}</title>
-    <!-- Fonts & Icons -->
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Leaflet.js Map -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
+    <title>{% block title %}台中大眾運輸交通整合系統{% endblock %}</title>
+    <!-- Google Fonts: Outfit & Noto Sans TC -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    
-    <!-- Custom CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS for Premium Design -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block head %}{% endblock %}
 </head>
-<body>
-    <nav class="navbar navbar-expand-lg navbar-dark navbar-custom">
-        <div class="container-fluid">
-            <a class="navbar-brand d-flex align-items-center gap-2" href="/">
-                <i class="fa-solid fa-compass-drafting text-info"></i>
-                <span>台中大眾運輸交通整合 APP</span>
+<body class="bg-dark-premium text-light">
+    <!-- Glassmorphism Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-glass sticky-top">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.index') }}">
+                <div class="brand-icon me-2">
+                    <i class="fa-solid fa-bus-simple text-accent-gradient"></i>
+                </div>
+                <span class="brand-text">台中捷運&公車 <span class="text-accent">TransitGO</span></span>
             </a>
             <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
-                            <i class="fa-solid fa-map-location-dot me-1"></i> 地圖查詢
+                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('main.index') }}">
+                            <i class="fa-solid fa-route me-1"></i> 路線規劃
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/favorites' %}active{% endif %}" href="/favorites">
-                            <i class="fa-solid fa-star me-1 text-warning"></i> 收藏管理
+                        <a class="nav-link {% if request.path == '/map' %}active{% endif %}" href="{{ url_for('main.transit_map') }}">
+                            <i class="fa-solid fa-map-location-dot me-1"></i> 即時地圖
                         </a>
                     </li>
+                    {% if session.get('user_id') %}
+                        <li class="nav-item dropdown ms-lg-3">
+                            <a class="nav-link dropdown-toggle btn btn-outline-accent px-3 py-1.5 mt-2 mt-lg-0 text-light d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fa-solid fa-user-astronaut me-2"></i> {{ session.get('username') }}
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end bg-dropdown border-accent-glow" aria-labelledby="navbarDropdown">
+                                <li>
+                                    <span class="dropdown-item-text text-muted small">
+                                        <i class="fa-solid fa-id-badge me-1"></i> ID: {{ session.get('user_id') }}
+                                    </span>
+                                </li>
+                                <li><hr class="dropdown-divider border-secondary"></li>
+                                <li>
+                                    <a class="dropdown-item" href="{{ url_for('main.index') }}#favorites">
+                                        <i class="fa-regular fa-star me-2 text-warning"></i> 我的最愛
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">
+                                        <i class="fa-solid fa-right-from-bracket me-2"></i> 登出帳號
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    {% else %}
+                        <li class="nav-item ms-lg-3 mt-2 mt-lg-0">
+                            <a class="btn btn-accent px-4 py-2 rounded-pill font-semibold" href="{{ url_for('auth.login') }}">
+                                <i class="fa-solid fa-right-to-bracket me-1"></i> 登入 / 註冊
+                            </a>
+                        </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
 
-    <main class="container-fluid p-0">
+    <!-- Main Content Area -->
+    <main class="container py-4 min-vh-80">
+        <!-- Flash Messages with Modern Glassy Toast Design -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages-container position-fixed bottom-0 end-0 p-4" style="z-index: 1080;">
+                    {% for category, message in messages %}
+                        <div class="toast show bg-glass border-accent-glow border-0 shadow-lg mb-3" role="alert" aria-live="assertive" aria-atomic="true">
+                            <div class="toast-header bg-transparent text-light border-bottom border-secondary d-flex justify-content-between align-items-center">
+                                <strong class="me-auto d-flex align-items-center">
+                                    {% if category == 'success' %}
+                                        <i class="fa-solid fa-circle-check text-success me-2 fs-5"></i> 成功
+                                    {% elif category == 'danger' or category == 'error' %}
+                                        <i class="fa-solid fa-triangle-exclamation text-danger me-2 fs-5"></i> 錯誤
+                                    {% else %}
+                                        <i class="fa-solid fa-circle-info text-info me-2 fs-5"></i> 提示
+                                    {% endif %}
+                                </strong>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                            </div>
+                            <div class="toast-body text-light-muted">
+                                {{ message }}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
         {% block content %}{% endblock %}
     </main>
 
-    <!-- JS Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Premium Design Footer -->
+    <footer class="footer py-4 mt-auto border-top border-secondary bg-dark-premium text-center">
+        <div class="container">
+            <p class="mb-1 text-light-muted">© 2026 台中大眾運輸交通整合系統 TransitGO. All rights reserved.</p>
+            <p class="mb-0 text-muted small">Designed for premium aesthetics & interactive user experience • Powered by Flask & SQLite</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

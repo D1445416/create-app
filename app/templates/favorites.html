@@ -1,164 +1,98 @@
 {% extends "base.html" %}
 
-{% block content %}
-<div class="favorites-page-container">
-    <div class="glass-card">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h2 class="fw-bold text-light"><i class="fa-solid fa-star text-warning me-2"></i> 個人化常用收藏管理</h2>
-                <p class="text-muted mb-0">在此集中管理您最常搭乘的公車站、捷運站與轉乘點，頁面將自動加載各站點之即時看板數據。</p>
-            </div>
-            <a href="/" class="btn btn-premium btn-sm">
-                <i class="fa-solid fa-map-location-dot me-1"></i> 返回地圖主頁
-            </a>
-        </div>
+{% block title %}我的收藏站點 - 台中大眾運輸交通整合 APP{% endblock %}
 
-        {% if not favorites %}
-        <div class="text-center py-5 text-muted">
-            <i class="fa-solid fa-star-half-stroke text-secondary mb-3" style="font-size: 4rem; opacity: 0.2;"></i>
-            <h4>尚未收藏任何大眾運輸站點</h4>
-            <p class="small px-5">您可以前往「地圖查詢」頁面，點點看任何地圖上的標記，並在側邊欄即時看板中點選「加入收藏」按鈕，快速建立常用路段。</p>
-        </div>
-        {% else %}
-        <div class="fav-grid">
-            {% for fav in favorites %}
-            <div class="fav-full-card" id="fav-card-{{ fav.station_id }}">
-                <div class="fav-header">
-                    <div>
-                        <span class="transport-tag tag-{{ fav.transport_type }}">
-                            {% if fav.transport_type == 'bus' %}🚌 公車{% elif fav.transport_type == 'mrt' %}🚇 捷運{% else %}🔄 轉乘點{% endif %}
-                        </span>
-                        <h4 class="station-title mb-1">{{ fav.station_name }}</h4>
-                        <span class="text-muted small d-block"><i class="fa-regular fa-clock me-1"></i> 收藏於: {{ fav.added_at[:19] }}</span>
-                    </div>
-                    <button class="btn-icon-danger" onclick="deleteFavoriteItem('{{ fav.station_id }}')" title="取消收藏">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                </div>
-                
-                <div class="fav-body">
-                    <div class="sub-header mt-3">
-                        <span class="live-indicator small"><span class="pulse-dot"></span> 即時動態</span>
-                    </div>
-                    
-                    <div id="live-data-{{ fav.station_id }}" class="arrival-list">
-                        <div class="text-center py-3 text-muted small">
-                            <div class="spinner-border spinner-border-sm text-info mb-1" role="status"></div>
-                            <div>載入最新時間中...</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <a href="/?station={{ fav.station_id }}" class="fav-link-btn">
-                    <i class="fa-solid fa-compass"></i> 在地圖上定位此站點
-                </a>
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2 text-info">⭐ 我的收藏站點</h1>
+                <a href="/" class="btn btn-outline-info btn-sm">返回地圖查詢</a>
             </div>
-            {% endfor %}
+
+            {% if favorites %}
+                <div class="row g-4">
+                    {% for fav in favorites %}
+                        <div class="col-md-6" id="fav-card-{{ fav.station_id }}">
+                            <div class="card bg-dark text-white border-secondary h-100 shadow-sm">
+                                <div class="card-body d-flex flex-column justify-content-between">
+                                    <div>
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h5 class="card-title text-light mb-0">{{ fav.station_name or '未命名站點' }}</h5>
+                                            <span class="badge {% if fav.transport_type == 'Bus' %}bg-primary{% else %}bg-purple{% endif %}">
+                                                {{ '公車' if fav.transport_type == 'Bus' else '捷運' }}
+                                            </span>
+                                        </div>
+                                        <p class="text-muted small mb-3">
+                                            站點 ID: <code>{{ fav.station_id }}</code><br>
+                                            收藏時間: {{ fav.added_at }}
+                                        </p>
+                                    </div>
+                                    <div class="d-flex gap-2 mt-3">
+                                        <a href="/?station_id={{ fav.station_id }}" class="btn btn-info btn-sm flex-grow-1">在地圖查看</a>
+                                        <button onclick="deleteFavorite('{{ fav.station_id }}')" class="btn btn-outline-danger btn-sm">刪除</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-5 bg-dark border border-secondary rounded-3">
+                    <h3 class="text-muted mb-3">尚無收藏任何站點</h3>
+                    <p class="text-secondary small">請在地圖上點擊站點，並點擊「加入收藏」按鈕來加入您的常用路線。</p>
+                    <a href="/" class="btn btn-info mt-3">前往地圖</a>
+                </div>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // 頁面加載時，為每一張卡片發送 Ajax 請求獲取即時公車與捷運動態
-    {% for fav in favorites %}
-        fetchLiveData('{{ fav.station_id }}');
-    {% endfor %}
-});
-
-function fetchLiveData(stationId) {
-    const container = document.getElementById(`live-data-${stationId}`);
-    fetch(`/api/station/${stationId}`)
-        .then(res => res.json())
-        .then(res => {
-            if (res.status === 'success') {
-                const data = res.data;
-                let html = '';
-                
-                // 併列呈現公車與捷運數據
-                if (data.bus && data.bus.length > 0) {
-                    html += `<div class="mb-2">`;
-                    data.bus.slice(0, 2).forEach(item => {
-                        const min = Math.floor(item.EstimateTime / 60);
-                        const timeStr = item.EstimateTime <= 60 ? '進站中' : `${min} 分`;
-                        const cls = item.EstimateTime <= 60 ? 'time-soon' : 'time-normal';
-                        html += `
-                            <div class="d-flex justify-content-between align-items-center mb-1 py-1" style="font-size: 0.85rem;">
-                                <span class="text-light fw-bold">🚌 ${item.RouteName} 路公車</span>
-                                <span class="arrival-time ${cls}" style="padding: 2px 8px; font-size: 0.75rem; min-width: 50px;">${timeStr}</span>
-                            </div>
-                        `;
-                    });
-                    html += `</div>`;
-                }
-                
-                if (data.mrt && data.mrt.length > 0) {
-                    html += `<div>`;
-                    data.mrt.slice(0, 2).forEach(item => {
-                        const min = Math.floor(item.EstimateTime / 60);
-                        const timeStr = `${min} 分`;
-                        const cls = item.EstimateTime <= 180 ? 'time-soon' : 'time-normal';
-                        html += `
-                            <div class="d-flex justify-content-between align-items-center mb-1 py-1" style="font-size: 0.85rem;">
-                                <span class="text-light fw-bold">🚇 往 ${item.Destination}</span>
-                                <span class="arrival-time ${cls}" style="padding: 2px 8px; font-size: 0.75rem; min-width: 50px;">${timeStr}</span>
-                            </div>
-                        `;
-                    });
-                    html += `</div>`;
-                }
-                
-                if (html === '') {
-                    html = '<div class="text-muted small">暫無即時班次資料</div>';
-                }
-                
-                container.innerHTML = html;
-            } else {
-                container.innerHTML = '<div class="text-danger small">加載失敗</div>';
-            }
-        })
-        .catch(err => {
-            container.innerHTML = '<div class="text-danger small">無法連線</div>';
-        });
-}
-
-function deleteFavoriteItem(stationId) {
-    if (!confirm('確定要將此站點從收藏中移除嗎？')) return;
+function deleteFavorite(stationId) {
+    if (!confirm("確定要將此站點從收藏中移除嗎？")) return;
     
     fetch(`/favorites/delete/${stationId}`, {
         method: 'POST',
         headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
         }
     })
-    .then(res => res.json())
+    .then(response => response.json())
     .then(res => {
         if (res.status === 'success') {
             const card = document.getElementById(`fav-card-${stationId}`);
             if (card) {
-                // 增加漸變消失的動畫效果
-                card.style.transition = 'all 0.3s ease';
-                card.style.opacity = '0';
-                card.style.transform = 'scale(0.8)';
-                setTimeout(() => {
-                    card.remove();
-                    // 如果沒有卡片了，重新整理以顯示空列表狀態
-                    if (document.querySelectorAll('.fav-full-card').length === 0) {
-                        location.reload();
-                    }
-                }, 300);
+                card.remove();
+            }
+            // If no cards left, refresh page to show empty state
+            if (document.querySelectorAll('.col-md-6').length === 0) {
+                window.location.reload();
             }
         } else {
-            alert('移除失敗：' + res.message);
+            alert("刪除失敗：" + res.message);
         }
     })
     .catch(err => {
-        alert('網路連線失敗，請稍後再試。');
+        console.error(err);
+        alert("發送請求時發生錯誤");
     });
 }
 </script>
+<style>
+.bg-purple {
+    background-color: #8b5cf6 !important;
+}
+.card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(56, 189, 248, 0.15) !important;
+}
+</style>
 {% endblock %}

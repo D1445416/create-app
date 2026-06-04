@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}台中大眾運輸交通整合系統 - 即時地圖{% endblock %}
+
+{% block head %}
+<!-- Leaflet CSS for Map rendering -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+    #map {
+        height: 600px;
+        width: 100%;
+        border-radius: 16px;
+        border: 1px solid var(--border-glass);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+        z-index: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Map Control Sidebar -->
+    <div class="col-lg-4">
+        <div class="glass-card p-4 h-100 d-flex flex-column">
+            <div class="d-flex align-items-center mb-3">
+                <div class="p-2 bg-accent-glow rounded-3 text-accent me-3" style="background: rgba(0,242,254,0.1);">
+                    <i class="fa-solid fa-map-location-dot fs-4"></i>
+                </div>
+                <div>
+                    <h3 class="mb-0 text-accent-gradient">大眾運輸即時地圖</h3>
+                    <p class="text-muted small mb-0">即時站點資訊與定位功能</p>
+                </div>
+            </div>
+            
+            <p class="text-light-muted small">點擊地圖或啟用定位來查找周邊的台中捷運站、公車站牌以及 YouBike 站點的即時租借車位數。</p>
+            
+            <hr class="border-secondary my-3">
+            
+            <h5 class="text-light mb-3"><i class="fa-solid fa-layer-group text-accent me-2"></i>地圖圖層切換</h5>
+            
+            <div class="d-flex flex-column gap-2 mb-4">
+                <div class="form-check form-switch bg-glass p-3 border-glass-subtle rounded-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <label class="form-check-label text-light d-flex align-items-center" for="layerMRT">
+                            <i class="fa-solid fa-train-subway text-accent me-2"></i> 台中捷運 MRT
+                        </label>
+                    </div>
+                    <input class="form-check-input ms-0" type="checkbox" id="layerMRT" checked>
+                </div>
+                
+                <div class="form-check form-switch bg-glass p-3 border-glass-subtle rounded-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <label class="form-check-label text-light d-flex align-items-center" for="layerBus">
+                            <i class="fa-solid fa-bus-simple text-warning me-2"></i> 市區公車站牌
+                        </label>
+                    </div>
+                    <input class="form-check-input ms-0" type="checkbox" id="layerBus" checked>
+                </div>
+                
+                <div class="form-check form-switch bg-glass p-3 border-glass-subtle rounded-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <label class="form-check-label text-light d-flex align-items-center" for="layerBike">
+                            <i class="fa-solid fa-bicycle text-success me-2"></i> YouBike 站點
+                        </label>
+                    </div>
+                    <input class="form-check-input ms-0" type="checkbox" id="layerBike" checked>
+                </div>
+            </div>
+
+            <div class="mt-auto d-grid gap-2">
+                <button class="btn btn-accent py-2.5 rounded-pill" onclick="locateUserOnMap()">
+                    <i class="fa-solid fa-crosshairs me-2"></i> 搜尋我的周邊站點
+                </button>
+                <div id="map-status" class="text-center"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Canvas -->
+    <div class="col-lg-8">
+        <div class="position-relative">
+            <div id="map"></div>
+            <!-- Floating Map Overlay Legend -->
+            <div class="position-absolute bottom-0 start-0 p-3 m-3 bg-glass border-glass-subtle rounded-3 shadow-lg" style="z-index: 1000; pointer-events: none;">
+                <div class="small font-semibold mb-2"><i class="fa-solid fa-circle-info text-accent me-1"></i>站點說明</div>
+                <div class="d-flex flex-column gap-1.5 small text-light-muted">
+                    <div><span class="badge bg-primary me-1" style="width:12px;height:12px;display:inline-block;padding:0;"></span> 捷運站 (MRT)</div>
+                    <div><span class="badge bg-warning me-1" style="width:12px;height:12px;display:inline-block;padding:0;"></span> 公車站牌 (Bus)</div>
+                    <div><span class="badge bg-success me-1" style="width:12px;height:12px;display:inline-block;padding:0;"></span> YouBike 2.0 租借站</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+    let map;
+    let markersLayer = L.layerGroup();
+    let currentPositionMarker = null;
+
+    // 取得 URL 查詢參數的經緯度，否則預設為台中火車站 (24.1373, 120.6868)
+    const urlParams = new URLSearchParams(window.location.search);
+    const startLat = parseFloat(urlParams.get('lat')) || 24.1373;
+    const startLng = parseFloat(urlParams.get('lng')) || 120.6868;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // 初始化 Leaflet 地圖，中心點設為 startLat, startLng
+        map = L.map('map').setView([startLat, startLng], 14);
+
+        // 使用 CartoDB Dark Matter 暗色地圖圖磚，完美契合我們的 Premium 暗黑風 UI！
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        markersLayer.addTo(map);
+
+        // 如果 URL 有傳入經緯度，渲染使用者當前位置標記
+        if (urlParams.get('lat') && urlParams.get('lng')) {
+            markUserPosition(startLat, startLng);
+        }
+
+        // 載入模擬的即時交通資料站點
+        loadStationMarkers();
+
+        // 監聽圖層 Switch 的切換事件
+        document.getElementById('layerMRT').addEventListener('change', refreshMarkers);
+        document.getElementById('layerBus').addEventListener('change', refreshMarkers);
+        document.getElementById('layerBike').addEventListener('change', refreshMarkers);
+    });
+
+    function markUserPosition(lat, lng) {
+        if (currentPositionMarker) {
+            map.removeLayer(currentPositionMarker);
+        }
+
+        // 使用一個帥氣的雷達圓圈樣式標記目前位置
+        currentPositionMarker = L.circle([lat, lng], {
+            color: '#00f2fe',
+            fillColor: '#00f2fe',
+            fillOpacity: 0.2,
+            radius: 80
+        }).addTo(map);
+
+        L.circleMarker([lat, lng], {
+            color: '#fff',
+            fillColor: '#00f2fe',
+            fillOpacity: 1,
+            radius: 6
+        }).addTo(map).bindPopup('<b>您的當前位置</b>').openPopup();
+
+        map.setView([lat, lng], 15);
+    }
+
+    function locateUserOnMap() {
+        const status = document.getElementById('map-status');
+        if (navigator.geolocation) {
+            status.innerHTML = '<span class="text-accent small mt-2 d-block"><i class="fa-solid fa-spinner fa-spin me-1"></i>正在尋找您的 GPS 定位...</span>';
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    markUserPosition(lat, lng);
+                    status.innerHTML = '<span class="text-success small mt-2 d-block"><i class="fa-solid fa-circle-check me-1"></i>定位完成，已顯示周邊站點！</span>';
+                },
+                (error) => {
+                    status.innerHTML = '<span class="text-danger small mt-2 d-block"><i class="fa-solid fa-triangle-exclamation me-1"></i>無法獲取定位權限。</span>';
+                }
+            );
+        } else {
+            status.innerHTML = '<span class="text-danger small mt-2 d-block">您的瀏覽器不支援定位功能。</span>';
+        }
+    }
+
+    // 模擬台中火車站與市府周邊的站點資料
+    const mockStations = [
+        // MRT 捷運 (Blue/Green Markers)
+        { name: "捷運台中市政府站", type: "mrt", lat: 24.1628, lng: 120.6483, info: "台中捷運綠線 • 班次正常" },
+        { name: "捷運水安宮站", type: "mrt", lat: 24.1528, lng: 120.6486, info: "台中捷運綠線 • 班次正常" },
+        { name: "捷運文心森林公園站", type: "mrt", lat: 24.1432, lng: 120.6487, info: "台中捷運綠線 • 班次正常" },
+
+        // Bus 公車 (Yellow Markers)
+        { name: "台中車站 (台灣大道)", type: "bus", lat: 24.1378, lng: 120.6860, info: "路線: 300, 301, 302, 310 • 即將到站" },
+        { name: "新光/遠百公車站", type: "bus", lat: 24.1654, lng: 120.6438, info: "路線: 300, 303, 304, 307 • 到站時間約 3 分鐘" },
+        { name: "科博館 (專用道)", type: "bus", lat: 24.1561, lng: 120.6654, info: "路線: 300, 310, 48 • 到站時間約 1 分鐘" },
+
+        // Bike 腳踏車 (Green Markers)
+        { name: "YouBike 2.0 台中火車站前廣場", type: "bike", lat: 24.1370, lng: 120.6872, info: "可借: 18 輛 • 可還: 22 輛" },
+        { name: "YouBike 2.0 市政府 (惠中路)", type: "bike", lat: 24.1620, lng: 120.6475, info: "可借: 12 輛 • 可還: 18 輛" },
+        { name: "YouBike 2.0 勤美誠品綠園道", type: "bike", lat: 24.1509, lng: 120.6635, info: "可借: 5 輛 • 可還: 25 輛" }
+    ];
+
+    function loadStationMarkers() {
+        refreshMarkers();
+    }
+
+    function refreshMarkers() {
+        markersLayer.clearLayers();
+
+        const showMRT = document.getElementById('layerMRT').checked;
+        const showBus = document.getElementById('layerBus').checked;
+        const showBike = document.getElementById('layerBike').checked;
+
+        mockStations.forEach(station => {
+            if (station.type === 'mrt' && !showMRT) return;
+            if (station.type === 'bus' && !showBus) return;
+            if (station.type === 'bike' && !showBike) return;
+
+            let markerColor = '#8a2be2'; // default MRT (Purple)
+            let iconShape = '<i class="fa-solid fa-train-subway"></i>';
+            if (station.type === 'bus') {
+                markerColor = '#ffc107'; // Bus (Yellow)
+                iconShape = '<i class="fa-solid fa-bus"></i>';
+            } else if (station.type === 'bike') {
+                markerColor = '#198754'; // Bike (Green)
+                iconShape = '<i class="fa-solid fa-bicycle"></i>';
+            }
+
+            // 建立自訂的 Leaflet DivIcon 讓圖示維持我們的極簡與發光特效
+            const customIcon = L.divIcon({
+                className: 'custom-map-marker',
+                html: `<div style="background-color: ${markerColor}; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 2px solid white; box-shadow: 0 0 10px ${markerColor}60; font-size: 0.95rem;">${iconShape}</div>`,
+                iconSize: [34, 34],
+                iconAnchor: [17, 17]
+            });
+
+            L.marker([station.lat, station.lng], { icon: customIcon })
+                .addTo(markersLayer)
+                .bindPopup(`
+                    <div style="font-family: var(--font-body); padding: 5px;">
+                        <h6 style="margin: 0 0 5px 0; font-weight: 700; color: #1f2937;">${station.name}</h6>
+                        <p style="margin: 0; font-size: 0.85rem; color: #4b5563;">${station.info}</p>
+                    </div>
+                `);
+        });
+    }
+</script>
+{% endblock %}

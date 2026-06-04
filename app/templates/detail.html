@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}{{ station.name }} - 站點詳情 - 台中大眾運輸站點擁擠度系統{% endblock %}
+
+{% block content %}
+<div class="row g-4 mt-2 justify-content-center">
+    <div class="col-lg-9">
+        <div class="glass-panel p-4 p-md-5">
+            <!-- 返回首頁連結 -->
+            <a href="/" class="text-info text-decoration-none d-inline-flex align-items-center gap-2 mb-4 hover-effect fw-semibold">
+                ← 返回首頁列表
+            </a>
+
+            <!-- 站點主要標題與類型徽章 -->
+            <div class="d-flex align-items-center justify-content-between border-bottom border-secondary border-opacity-25 pb-4 mb-4 flex-wrap gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <span class="fs-1">
+                        {% if station.type == 'metro' %}🚇{% else %}🚌{% endif %}
+                    </span>
+                    <div>
+                        <div class="d-flex align-items-center gap-2.5 flex-wrap">
+                            <h2 class="text-white mb-0 fw-bold">{{ station.name }}</h2>
+                            {% if station.type == 'metro' %}
+                                <span class="badge badge-metro">捷運</span>
+                            {% else %}
+                                <span class="badge badge-bus">公車</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-muted mb-0 mt-1">{{ station.route_name }} | 站點代碼: <span class="text-white-50">{{ station.station_id }}</span></p>
+                    </div>
+                </div>
+                <div>
+                    <!-- 擁擠度顏色徽章 -->
+                    <span id="detail-crowd-badge" class="crowd-indicator fs-5 px-4 py-2 
+                        {% if cache.level == 'red' %}crowd-red
+                        {% elif cache.level == 'orange' %}crowd-orange
+                        {% else %}crowd-green{% endif %}">
+                        {% if cache.level == 'red' %}擁擠 (紅燈)
+                        {% elif cache.level == 'orange' %}普通 (橘燈)
+                        {% else %}通暢 (綠燈){% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <!-- 即時擁擠度指標詳細內容 -->
+            <div class="row g-4">
+                <!-- 地理位置資訊 -->
+                <div class="col-md-6">
+                    <div class="glass-panel p-4 h-100 bg-black bg-opacity-20 border-opacity-50">
+                        <h5 class="text-white fw-bold mb-3 d-flex align-items-center gap-2">
+                            <span>📍</span> 地理位置座標
+                        </h5>
+                        <div class="d-flex flex-column gap-2 mb-4">
+                            <p class="mb-0 text-muted"><strong>站點緯度 (Latitude)：</strong> <span class="text-white">{{ station.lat }}</span></p>
+                            <p class="mb-0 text-muted"><strong>站點經度 (Longitude)：</strong> <span class="text-white">{{ station.lng }}</span></p>
+                        </div>
+                        <a href="https://www.google.com/maps/search/?api=1&query={{ station.lat }},{{ station.lng }}" 
+                           target="_blank" class="btn btn-outline-light btn-sm w-100 py-2.5 fw-semibold transition-all">
+                            🗺️ 在 Google 地圖上查看站點
+                        </a>
+                    </div>
+                </div>
+
+                <!-- 即時人潮狀態 -->
+                <div class="col-md-6">
+                    <div class="glass-panel p-4 h-100 bg-black bg-opacity-20 border-opacity-50">
+                        <h5 class="text-white fw-bold mb-3 d-flex align-items-center gap-2">
+                            <span>📊</span> 即時人潮快取狀態
+                        </h5>
+                        <div class="d-flex flex-column gap-2 mb-4">
+                            <p class="mb-0 text-muted"><strong>目前載客數 (估算)：</strong> <span id="val-passenger-count" class="text-white fw-bold fs-5">{{ cache.passenger_count }} 人</span></p>
+                            <p class="mb-0 text-muted"><strong>最後更新時間：</strong> <span id="val-last-updated" class="text-white">{{ cache.last_updated }}</span></p>
+                        </div>
+                        <p class="text-muted small mb-0">
+                            系統設有快取機制防護 (時效 60 秒)。<br>
+                            當前狀態：<span id="cache-status-label" class="text-success fw-semibold">有效 (Cache Hit)</span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 強制手動更新快取按鈕 -->
+            <div class="mt-5 d-flex gap-3">
+                <button id="btn-force-refresh" class="btn btn-info text-white w-100 py-3 fw-bold fs-6 shadow-sm">
+                    🔄 強制同步更新外部 TDX API 即時資料
+                </button>
+            </div>
+            
+            <div id="refresh-alert-container" class="mt-3"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const refreshBtn = document.getElementById('btn-force-refresh');
+    const alertContainer = document.getElementById('refresh-alert-container');
+    
+    if (!refreshBtn) return;
+
+    // 計算快取是否已經過期 (由前端輔助顯示)
+    function checkFrontendCacheStatus() {
+        const timeSpan = document.getElementById('val-last-updated');
+        const statusLabel = document.getElementById('cache-status-label');
+        if (!timeSpan || !statusLabel) return;
+        
+        try {
+            const lastUpdatedStr = timeSpan.innerText;
+            const lastUpdated = new Date(lastUpdatedStr);
+            const now = new Date();
+            const diffSeconds = Math.floor((now - lastUpdated) / 1000);
+            
+            if (diffSeconds >= 60) {
+                statusLabel.innerText = "已過期 (Cache Expired)";
+                statusLabel.className = "text-warning fw-semibold";
+            } else {
+                statusLabel.innerText = `有效 (Cache Hit - ${60 - diffSeconds} 秒後過期)`;
+                statusLabel.className = "text-success fw-semibold";
+            }
+        } catch (e) {
+            // 解析失敗忽略
+        }
+    }
+
+    // 每秒更新快取倒數狀態
+    setInterval(checkFrontendCacheStatus, 1000);
+    checkFrontendCacheStatus();
+
+    // 點擊手動重新整理按鈕
+    refreshBtn.addEventListener('click', async () => {
+        refreshBtn.disabled = true;
+        refreshBtn.innerHTML = '<span class="spinner-grow spinner-grow-sm" role="status" aria-hidden="true"></span> 正在與交通部 TDX 連線更新中...';
+        alertContainer.innerHTML = '';
+
+        try {
+            const response = await fetch('/api/stations/refresh', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    station_id: "{{ station.station_id }}"
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('API 回傳異常');
+            }
+
+            const data = await response.json();
+            
+            if (data.success && data.station) {
+                // 1. 動態更新 UI 資料
+                const valPassenger = document.getElementById('val-passenger-count');
+                const valUpdated = document.getElementById('val-last-updated');
+                const badge = document.getElementById('detail-crowd-badge');
+                
+                valPassenger.innerText = `${data.station.passenger_count} 人`;
+                valUpdated.innerText = data.station.last_updated;
+                
+                // 2. 動態變更擁擠度顏色與文字
+                badge.className = "crowd-indicator fs-5 px-4 py-2 ";
+                if (data.station.level === 'red') {
+                    badge.classList.add('crowd-red');
+                    badge.innerText = "擁擠 (紅燈)";
+                } else if (data.station.level === 'orange') {
+                    badge.classList.add('crowd-orange');
+                    badge.innerText = "普通 (橘燈)";
+                } else {
+                    badge.classList.add('crowd-green');
+                    badge.innerText = "通暢 (綠燈)";
+                }
+
+                checkFrontendCacheStatus();
+
+                // 3. 顯示成功 Toast / Alert
+                alertContainer.innerHTML = `
+                    <div class="alert alert-success m-0 p-3 d-flex align-items-center glass-panel border-success" role="alert">
+                        <span class="fs-4 me-2">✅</span>
+                        <div>即時資料同步成功！已成功向交通部 TDX 抓取最新載客擁擠人流。</div>
+                    </div>
+                `;
+            } else {
+                throw new Error(data.error || '更新失敗');
+            }
+        } catch (error) {
+            alertContainer.innerHTML = `
+                <div class="alert alert-danger m-0 p-3 d-flex align-items-center glass-panel border-danger" role="alert">
+                    <span class="fs-4 me-2">⚠️</span>
+                    <div>與 TDX 介接失敗: ${error.message}。系統自動使用先前資料庫快取作為安全保全展示。</div>
+                </div>
+            `;
+        } finally {
+            refreshBtn.disabled = false;
+            refreshBtn.innerHTML = '🔄 強制同步更新外部 TDX API 即時資料';
+        }
+    });
+});
+</script>
+{% endblock %}
