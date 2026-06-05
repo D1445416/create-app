@@ -26,7 +26,7 @@ def search_route():
     # 模擬外部交通規劃 API 的回傳資料
     mock_details = [
         {
-            "option_name": "方案 A：捷運主導",
+            "option_name": "路線方案 A：捷運主導",
             "total_time": 25,
             "cost": 35,
             "segments": [
@@ -36,7 +36,7 @@ def search_route():
             ]
         },
         {
-            "option_name": "方案 B：快捷公車",
+            "option_name": "路線方案 B：快捷公車",
             "total_time": 32,
             "cost": 20,
             "segments": [

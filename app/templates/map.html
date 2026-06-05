@@ -1,243 +1,1013 @@
 {% extends "base.html" %}
 
-{% block title %}台中大眾運輸交通整合系統 - 即時地圖{% endblock %}
+{% block title %}台中大眾運輸即時地圖 — TransitGO{% endblock %}
 
 {% block head %}
-<!-- Leaflet CSS for Map rendering -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <style>
-    #map {
-        height: 600px;
-        width: 100%;
-        border-radius: 16px;
-        border: 1px solid var(--border-glass);
-        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-        z-index: 1;
-    }
+/* ============================
+   即時地圖頁面專屬樣式
+   ============================ */
+#map-page {
+    margin: -1.5rem;
+    font-family: var(--font-body);
+    background: linear-gradient(135deg, #fff0f5 0%, #f0f7ff 100%);
+    min-height: 100vh;
+}
+
+/* 頁面頂部標題列 */
+.map-topbar {
+    background: rgba(255,255,255,0.9);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(84,160,255,0.12);
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.8rem;
+}
+.map-topbar-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.map-topbar-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,117,160,0.1);
+    color: var(--color-primary);
+    border: 1px solid rgba(255,117,160,0.2);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+.pulse-live {
+    width: 8px;
+    height: 8px;
+    background: #e74c3c;
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse-red 1.2s infinite;
+}
+@keyframes pulse-red {
+    0%, 100% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 0 rgba(231,76,60,0.4); }
+    50% { transform: scale(1.3); opacity: 0.7; box-shadow: 0 0 0 5px rgba(231,76,60,0); }
+}
+
+/* 主佈局 */
+.map-layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    height: calc(100vh - 130px);
+    min-height: 600px;
+}
+@media (max-width: 960px) {
+    .map-layout { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+    #map-container { order: -1; height: 55vh; }
+    .map-sidebar { height: auto; max-height: 45vh; overflow-y: auto; }
+}
+
+/* 左側資訊面板 */
+.map-sidebar {
+    background: #ffffff;
+    border-right: 1px solid rgba(84,160,255,0.1);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+.map-sidebar::-webkit-scrollbar { width: 5px; }
+.map-sidebar::-webkit-scrollbar-thumb { background: rgba(255,117,160,0.2); border-radius: 3px; }
+
+.sidebar-section {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid #f0f4f8;
+}
+.sidebar-section-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 0.7rem;
+}
+
+/* 圖層切換 */
+.layer-toggles {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.layer-toggle-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #f7fafc;
+    border-radius: 10px;
+    padding: 0.6rem 0.9rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.layer-toggle-item:hover { background: #fff0f5; }
+.layer-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+.layer-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+/* 自訂 toggle switch */
+.toggle-switch {
+    position: relative;
+    width: 36px;
+    height: 20px;
+}
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: #d1d5db;
+    border-radius: 20px;
+    transition: background 0.2s;
+    cursor: pointer;
+}
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    left: 3px;
+    top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+.toggle-switch input:checked + .toggle-slider { background: var(--color-secondary); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(16px); }
+
+/* GPS 按鈕 */
+.btn-locate {
+    width: 100%;
+    background: linear-gradient(135deg, #ff75a0, #54a0ff);
+    border: none;
+    border-radius: 12px;
+    padding: 0.75rem;
+    color: white;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(255,117,160,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.btn-locate:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(84,160,255,0.3); }
+
+/* 選取站點資訊卡 */
+.station-info-card {
+    display: none;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.station-info-card.visible { display: flex; }
+.station-info-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+.station-info-type-badge {
+    display: inline-block;
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: white;
+}
+.station-info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    padding: 0.3rem 0;
+    border-bottom: 1px dashed #f0f4f8;
+}
+.station-info-row:last-child { border-bottom: none; }
+.station-info-value { font-weight: 600; color: var(--text-main); }
+
+/* 捷運路線圖 */
+.mrt-line-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0.3rem 0;
+}
+.mrt-line-stop {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.28rem 0;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-radius: 6px;
+    padding-left: 4px;
+}
+.mrt-line-stop:hover { background: #f0f7ff; }
+.mrt-line-icon-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 16px;
+    flex-shrink: 0;
+}
+.mrt-line-node {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #00b894;
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px #00b894;
+    flex-shrink: 0;
+    transition: all 0.15s;
+}
+.mrt-line-stop:hover .mrt-line-node,
+.mrt-line-stop.active .mrt-line-node { transform: scale(1.3); }
+.mrt-line-connector {
+    width: 3px;
+    height: 10px;
+    background: #00b894;
+    margin: 1px 0;
+}
+.mrt-stop-name {
+    font-size: 0.83rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+.mrt-stop-num {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    background: #f0f4f8;
+    border-radius: 4px;
+    padding: 0 5px;
+    margin-left: auto;
+}
+
+/* 公車路線資訊 */
+.bus-route-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f0f4f8;
+}
+.bus-route-item:last-child { border-bottom: none; }
+.bus-route-num {
+    background: linear-gradient(135deg, #ff9f43, #ffc371);
+    color: white;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    min-width: 42px;
+    text-align: center;
+}
+.bus-route-info {
+    flex: 1;
+    min-width: 0;
+}
+.bus-route-name {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+.bus-route-stops {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 地圖容器 */
+#map-container {
+    position: relative;
+}
+#map {
+    width: 100%;
+    height: 100%;
+}
+.map-overlay-legend {
+    position: absolute;
+    bottom: 16px;
+    right: 16px;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(8px);
+    border-radius: 12px;
+    padding: 0.7rem 1rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    z-index: 1000;
+    pointer-events: none;
+    min-width: 130px;
+}
+.legend-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    margin-bottom: 0.4rem;
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 0.78rem;
+    color: var(--text-main);
+    font-weight: 500;
+    margin-bottom: 3px;
+}
+.legend-line {
+    width: 24px;
+    height: 4px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+.legend-circle {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* 地圖頂部搜尋浮層 */
+.map-float-search {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(12px);
+    border-radius: 50px;
+    padding: 0.45rem 1.2rem 0.45rem 0.8rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 260px;
+}
+.map-float-search input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    color: var(--text-main);
+    width: 200px;
+}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="row g-4">
-    <!-- Map Control Sidebar -->
-    <div class="col-lg-4">
-        <div class="glass-card p-4 h-100 d-flex flex-column">
-            <div class="d-flex align-items-center mb-3">
-                <div class="p-2 bg-accent-glow rounded-3 text-accent me-3" style="background: rgba(0,242,254,0.1);">
-                    <i class="fa-solid fa-map-location-dot fs-4"></i>
-                </div>
-                <div>
-                    <h3 class="mb-0 text-accent-gradient">大眾運輸即時地圖</h3>
-                    <p class="text-muted small mb-0">即時站點資訊與定位功能</p>
-                </div>
-            </div>
-            
-            <p class="text-light-muted small">點擊地圖或啟用定位來查找周邊的台中捷運站、公車站牌以及 YouBike 站點的即時租借車位數。</p>
-            
-            <hr class="border-secondary my-3">
-            
-            <h5 class="text-light mb-3"><i class="fa-solid fa-layer-group text-accent me-2"></i>地圖圖層切換</h5>
-            
-            <div class="d-flex flex-column gap-2 mb-4">
-                <div class="form-check form-switch bg-glass p-3 border-glass-subtle rounded-3 d-flex justify-content-between align-items-center">
-                    <div>
-                        <label class="form-check-label text-light d-flex align-items-center" for="layerMRT">
-                            <i class="fa-solid fa-train-subway text-accent me-2"></i> 台中捷運 MRT
-                        </label>
-                    </div>
-                    <input class="form-check-input ms-0" type="checkbox" id="layerMRT" checked>
-                </div>
-                
-                <div class="form-check form-switch bg-glass p-3 border-glass-subtle rounded-3 d-flex justify-content-between align-items-center">
-                    <div>
-                        <label class="form-check-label text-light d-flex align-items-center" for="layerBus">
-                            <i class="fa-solid fa-bus-simple text-warning me-2"></i> 市區公車站牌
-                        </label>
-                    </div>
-                    <input class="form-check-input ms-0" type="checkbox" id="layerBus" checked>
-                </div>
-                
-                <div class="form-check form-switch bg-glass p-3 border-glass-subtle rounded-3 d-flex justify-content-between align-items-center">
-                    <div>
-                        <label class="form-check-label text-light d-flex align-items-center" for="layerBike">
-                            <i class="fa-solid fa-bicycle text-success me-2"></i> YouBike 站點
-                        </label>
-                    </div>
-                    <input class="form-check-input ms-0" type="checkbox" id="layerBike" checked>
-                </div>
-            </div>
+<div id="map-page">
 
-            <div class="mt-auto d-grid gap-2">
-                <button class="btn btn-accent py-2.5 rounded-pill" onclick="locateUserOnMap()">
-                    <i class="fa-solid fa-crosshairs me-2"></i> 搜尋我的周邊站點
-                </button>
-                <div id="map-status" class="text-center"></div>
-            </div>
+    <!-- 頂部資訊列 -->
+    <div class="map-topbar">
+        <div class="map-topbar-title">
+            <i class="fa-solid fa-map-location-dot" style="color:var(--color-secondary);"></i>
+            台中大眾運輸即時地圖
+        </div>
+        <div style="display:flex; gap:0.6rem; align-items:center; flex-wrap:wrap;">
+            <span class="map-topbar-badge">
+                <span class="pulse-live"></span>
+                即時更新中
+            </span>
+            <span style="font-size:0.8rem; color:var(--text-muted);" id="last-update-time">—</span>
         </div>
     </div>
 
-    <!-- Map Canvas -->
-    <div class="col-lg-8">
-        <div class="position-relative">
+    <!-- 主佈局：左側面板 + 地圖 -->
+    <div class="map-layout">
+
+        <!-- ===== 左側資訊面板 ===== -->
+        <div class="map-sidebar">
+
+            <!-- GPS 定位 -->
+            <div class="sidebar-section">
+                <button class="btn-locate" id="btn-locate" onclick="locateUser()">
+                    <i class="fa-solid fa-crosshairs"></i>
+                    搜尋我的周邊站點
+                </button>
+                <div id="locate-status" style="font-size:0.8rem; text-align:center; margin-top:6px; color:var(--text-muted);"></div>
+            </div>
+
+            <!-- 圖層控制 -->
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">地圖圖層</div>
+                <div class="layer-toggles">
+                    <label class="layer-toggle-item" for="chk-mrt">
+                        <div class="layer-toggle-label">
+                            <span class="layer-dot" style="background:#00b894;"></span>
+                            台中捷運綠線
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="chk-mrt" checked onchange="refreshMap()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </label>
+                    <label class="layer-toggle-item" for="chk-bus">
+                        <div class="layer-toggle-label">
+                            <span class="layer-dot" style="background:#ff9f43;"></span>
+                            台灣大道公車幹線
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="chk-bus" checked onchange="refreshMap()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </label>
+                    <label class="layer-toggle-item" for="chk-bike">
+                        <div class="layer-toggle-label">
+                            <span class="layer-dot" style="background:#6c5ce7;"></span>
+                            YouBike 2.0 站點
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="chk-bike" checked onchange="refreshMap()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </label>
+                    <label class="layer-toggle-item" for="chk-route">
+                        <div class="layer-toggle-label">
+                            <span class="layer-dot" style="background:#ff75a0;"></span>
+                            路線軌跡顯示
+                        </div>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="chk-route" checked onchange="refreshMap()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 選取站點資訊 -->
+            <div class="sidebar-section" id="selected-station-section">
+                <div class="sidebar-section-title">選取站點資訊</div>
+                <div id="station-placeholder" style="text-align:center; padding:1rem 0; color:var(--text-muted); font-size:0.85rem;">
+                    <i class="fa-solid fa-hand-pointer" style="font-size:1.5rem; opacity:0.3; display:block; margin-bottom:6px;"></i>
+                    點擊地圖上的站點<br>查看詳細資訊
+                </div>
+                <div class="station-info-card" id="station-info-card">
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <span class="station-info-type-badge" id="s-type-badge">捷運</span>
+                        <span class="station-info-name" id="s-name">—</span>
+                    </div>
+                    <div class="station-info-row">
+                        <span>站點類型</span>
+                        <span class="station-info-value" id="s-type-text">—</span>
+                    </div>
+                    <div class="station-info-row">
+                        <span>路線</span>
+                        <span class="station-info-value" id="s-route">—</span>
+                    </div>
+                    <div class="station-info-row">
+                        <span>即時資訊</span>
+                        <span class="station-info-value" id="s-realtime">—</span>
+                    </div>
+                    <div class="station-info-row">
+                        <span>座標</span>
+                        <span class="station-info-value" id="s-coord" style="font-size:0.75rem;">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 台中捷運綠線路線圖 -->
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">🚇 捷運綠線 — 所有站點</div>
+                <div class="mrt-line-strip" id="mrt-line-strip">
+                    <!-- 動態注入 -->
+                </div>
+            </div>
+
+            <!-- 台中公車主要幹線 -->
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">🚌 台中公車主要幹線</div>
+                <div id="bus-routes-list">
+                    <!-- 動態注入 -->
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ===== 地圖區域 ===== -->
+        <div id="map-container">
             <div id="map"></div>
-            <!-- Floating Map Overlay Legend -->
-            <div class="position-absolute bottom-0 start-0 p-3 m-3 bg-glass border-glass-subtle rounded-3 shadow-lg" style="z-index: 1000; pointer-events: none;">
-                <div class="small font-semibold mb-2"><i class="fa-solid fa-circle-info text-accent me-1"></i>站點說明</div>
-                <div class="d-flex flex-column gap-1.5 small text-light-muted">
-                    <div><span class="badge bg-primary me-1" style="width:12px;height:12px;display:inline-block;padding:0;"></span> 捷運站 (MRT)</div>
-                    <div><span class="badge bg-warning me-1" style="width:12px;height:12px;display:inline-block;padding:0;"></span> 公車站牌 (Bus)</div>
-                    <div><span class="badge bg-success me-1" style="width:12px;height:12px;display:inline-block;padding:0;"></span> YouBike 2.0 租借站</div>
+
+            <!-- 浮動搜尋框 -->
+            <div class="map-float-search">
+                <i class="fa-solid fa-magnifying-glass" style="color:var(--text-muted);"></i>
+                <input type="text" id="map-search-input" placeholder="搜尋站點..." oninput="filterMapSearch(this.value)">
+                <button onclick="document.getElementById('map-search-input').value=''; filterMapSearch('');"
+                    style="border:none;background:none;color:var(--text-muted);cursor:pointer; padding:0; font-size:0.8rem;">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- 右下圖例 -->
+            <div class="map-overlay-legend">
+                <div class="legend-title">LEGEND</div>
+                <div class="legend-item">
+                    <span class="legend-line" style="background:#00b894;"></span>
+                    捷運綠線
+                </div>
+                <div class="legend-item">
+                    <span class="legend-line" style="background:#ff9f43; border-top: 2px dashed #ff9f43; height:0;"></span>
+                    台灣大道公車
+                </div>
+                <div class="legend-item">
+                    <span class="legend-circle" style="background:#00b894; border:2px solid white; box-shadow:0 0 0 2px #00b894;"></span>
+                    捷運站
+                </div>
+                <div class="legend-item">
+                    <span class="legend-circle" style="background:#ff9f43;"></span>
+                    公車站
+                </div>
+                <div class="legend-item">
+                    <span class="legend-circle" style="background:#6c5ce7;"></span>
+                    YouBike
                 </div>
             </div>
         </div>
+
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<!-- Leaflet JS -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
-    let map;
-    let markersLayer = L.layerGroup();
-    let currentPositionMarker = null;
+// ================================================
+// 台中大眾運輸即時地圖 — 完整版
+// ================================================
 
-    // 取得 URL 查詢參數的經緯度，否則預設為台中火車站 (24.1373, 120.6868)
-    const urlParams = new URLSearchParams(window.location.search);
-    const startLat = parseFloat(urlParams.get('lat')) || 24.1373;
-    const startLng = parseFloat(urlParams.get('lng')) || 120.6868;
+let map;
+let layerGroups = { mrt: L.layerGroup(), bus: L.layerGroup(), bike: L.layerGroup(), route: L.layerGroup() };
+let userMarker = null;
+let allMarkerData = [];  // 全部標記資料
 
-    document.addEventListener('DOMContentLoaded', () => {
-        // 初始化 Leaflet 地圖，中心點設為 startLat, startLng
-        map = L.map('map').setView([startLat, startLng], 14);
+// ---- 台中捷運綠線 18 站完整座標 ----
+const MRT_GREEN_LINE = [
+    { id: 'G01', name: '北屯總站',    lat: 24.2015, lng: 120.7018, terminal: true },
+    { id: 'G02', name: '舊社',        lat: 24.1940, lng: 120.7002 },
+    { id: 'G03', name: '松竹',        lat: 24.1870, lng: 120.6990 },
+    { id: 'G04', name: '四維國小',    lat: 24.1808, lng: 120.6942 },
+    { id: 'G05', name: '文心崇德',    lat: 24.1745, lng: 120.6826 },
+    { id: 'G06', name: '文心中清',    lat: 24.1687, lng: 120.6730 },
+    { id: 'G07', name: '文華高中',    lat: 24.1679, lng: 120.6638 },
+    { id: 'G08', name: '文心櫻花',    lat: 24.1660, lng: 120.6540 },
+    { id: 'G09', name: '市政府',      lat: 24.1629, lng: 120.6438, transfer: true },
+    { id: 'G10', name: '水安宮',      lat: 24.1528, lng: 120.6486 },
+    { id: 'G11', name: '文心森林公園',lat: 24.1432, lng: 120.6487 },
+    { id: 'G12', name: '南屯',        lat: 24.1259, lng: 120.6355 },
+    { id: 'G13', name: '豐樂公園',    lat: 24.1200, lng: 120.6295 },
+    { id: 'G14', name: '大慶',        lat: 24.1172, lng: 120.6303 },
+    { id: 'G15', name: '九張犁',      lat: 24.1148, lng: 120.6260 },
+    { id: 'G16', name: '九德',        lat: 24.1128, lng: 120.6210 },
+    { id: 'G17', name: '烏日',        lat: 24.1109, lng: 120.6170 },
+    { id: 'G18', name: '高鐵台中站',  lat: 24.1121, lng: 120.6162, terminal: true, transfer: true },
+];
 
-        // 使用 CartoDB Dark Matter 暗色地圖圖磚，完美契合我們的 Premium 暗黑風 UI！
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 20
-        }).addTo(map);
+// ---- 公車站（台灣大道幹線 300 號沿線） ----
+const BUS_STOPS = [
+    { name: '台中車站',    lat: 24.1373, lng: 120.6868, routes: ['300', '301', '302', '310', '1'] },
+    { name: '第二市場',    lat: 24.1425, lng: 120.6782, routes: ['300', '301', '302'] },
+    { name: '科博館',      lat: 24.1561, lng: 120.6654, routes: ['300', '310', '48'] },
+    { name: '勤美誠品',    lat: 24.1513, lng: 120.6638, routes: ['300', '306'] },
+    { name: '市政府站牌',  lat: 24.1640, lng: 120.6445, routes: ['300', '303', '304', '307'] },
+    { name: '秋紅谷站牌',  lat: 24.1669, lng: 120.6400, routes: ['300', '302'] },
+    { name: '逢甲大學',    lat: 24.1798, lng: 120.6450, routes: ['35', '36', '70', '快捷2'] },
+    { name: '一中商圈',    lat: 24.1487, lng: 120.6853, routes: ['24', '56', '300'] },
+    { name: '東海大學',    lat: 24.1802, lng: 120.6013, routes: ['35', '100'] },
+];
 
-        markersLayer.addTo(map);
+// ---- YouBike 站點 ----
+const YOUBIKE_STATIONS = [
+    { name: 'YouBike 台中車站前',    lat: 24.1370, lng: 120.6872, bikes: 18, docks: 22 },
+    { name: 'YouBike 市政府 (惠中)', lat: 24.1620, lng: 120.6475, bikes: 12, docks: 18 },
+    { name: 'YouBike 勤美誠品綠園道',lat: 24.1509, lng: 120.6635, bikes: 5,  docks: 25 },
+    { name: 'YouBike 科博館',        lat: 24.1558, lng: 120.6658, bikes: 9,  docks: 21 },
+    { name: 'YouBike 逢甲大學',      lat: 24.1805, lng: 120.6448, bikes: 14, docks: 16 },
+    { name: 'YouBike 高鐵台中站',    lat: 24.1115, lng: 120.6158, bikes: 22, docks: 8 },
+    { name: 'YouBike 台中火車站南',  lat: 24.1360, lng: 120.6875, bikes: 7,  docks: 23 },
+];
 
-        // 如果 URL 有傳入經緯度，渲染使用者當前位置標記
-        if (urlParams.get('lat') && urlParams.get('lng')) {
-            markUserPosition(startLat, startLng);
-        }
+// ---- 台中公車主要幹線資料 ----
+const BUS_ROUTES_INFO = [
+    { num: '300', name: '台灣大道快捷 BRT 概念幹線', stops: '台中車站 ↔ 高鐵台中站', color: '#ff9f43' },
+    { num: '301', name: '台中車站—逢甲大學', stops: '台中車站 ↔ 逢甲', color: '#ff9f43' },
+    { num: '35',  name: '台中車站—東海大學', stops: '台中車站 ↔ 東海', color: '#ff9f43' },
+    { num: '307', name: '市政府 — 烏日', stops: '市政府 ↔ 烏日', color: '#ff9f43' },
+    { num: '310', name: '科博館—高鐵台中', stops: '科博館 ↔ 高鐵台中', color: '#ffc371' },
+    { num: '70',  name: '逢甲–豐原快速線', stops: '逢甲 ↔ 豐原', color: '#ffc371' },
+];
 
-        // 載入模擬的即時交通資料站點
-        loadStationMarkers();
+// ---- 台灣大道公車路線軌跡（簡化多邊形） ----
+const BUS_ROUTE_300_COORDS = [
+    [24.1373, 120.6868], // 台中車站
+    [24.1425, 120.6782], // 第二市場
+    [24.1487, 120.6853], // 一中商圈 (略繞)
+    [24.1561, 120.6654], // 科博館
+    [24.1513, 120.6638], // 勤美誠品
+    [24.1629, 120.6438], // 市政府
+    [24.1669, 120.6400], // 秋紅谷
+    [24.1259, 120.6355], // 南屯(捷運)
+    [24.1121, 120.6162], // 高鐵台中
+];
 
-        // 監聽圖層 Switch 的切換事件
-        document.getElementById('layerMRT').addEventListener('change', refreshMarkers);
-        document.getElementById('layerBus').addEventListener('change', refreshMarkers);
-        document.getElementById('layerBike').addEventListener('change', refreshMarkers);
+// ================================================
+// 頁面初始化
+// ================================================
+document.addEventListener('DOMContentLoaded', () => {
+    initMap();
+    buildSidebarMrtLine();
+    buildSidebarBusRoutes();
+    updateTimestamp();
+    setInterval(updateTimestamp, 30000);
+});
+
+function initMap() {
+    // URL 參數初始中心
+    const params = new URLSearchParams(window.location.search);
+    const lat = parseFloat(params.get('lat')) || 24.155;
+    const lng = parseFloat(params.get('lng')) || 120.660;
+
+    map = L.map('map', { zoomControl: false }).setView([lat, lng], 13);
+
+    // 淺色地圖圖磚（搭配淺色主題）
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19
+    }).addTo(map);
+
+    // 加入縮放控制到右下
+    L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+    // 加入各圖層
+    Object.values(layerGroups).forEach(lg => lg.addTo(map));
+
+    // 繪製所有元素
+    drawMrtLine();
+    drawBusRoute();
+    drawMrtStations();
+    drawBusStops();
+    drawYouBikeStations();
+}
+
+// ================================================
+// 繪製捷運綠線路線軌跡
+// ================================================
+function drawMrtLine() {
+    const coords = MRT_GREEN_LINE.map(s => [s.lat, s.lng]);
+    const line = L.polyline(coords, {
+        color: '#00b894',
+        weight: 6,
+        opacity: 0.85,
+        lineJoin: 'round',
+        lineCap: 'round'
     });
+    line.addTo(layerGroups.route);
 
-    function markUserPosition(lat, lng) {
-        if (currentPositionMarker) {
-            map.removeLayer(currentPositionMarker);
-        }
+    // 加一條細白邊框使視覺更清晰
+    const lineOutline = L.polyline(coords, {
+        color: '#ffffff',
+        weight: 10,
+        opacity: 0.4,
+    });
+    lineOutline.addTo(layerGroups.route);
+    // 確保實線在上
+    line.bringToFront();
+}
 
-        // 使用一個帥氣的雷達圓圈樣式標記目前位置
-        currentPositionMarker = L.circle([lat, lng], {
-            color: '#00f2fe',
-            fillColor: '#00f2fe',
-            fillOpacity: 0.2,
-            radius: 80
-        }).addTo(map);
+// ================================================
+// 繪製公車幹線路線
+// ================================================
+function drawBusRoute() {
+    const line = L.polyline(BUS_ROUTE_300_COORDS, {
+        color: '#ff9f43',
+        weight: 4,
+        opacity: 0.75,
+        dashArray: '10 6',
+    });
+    line.bindTooltip('300號 台灣大道幹線', { permanent: false, direction: 'top' });
+    line.addTo(layerGroups.route);
+}
 
-        L.circleMarker([lat, lng], {
-            color: '#fff',
-            fillColor: '#00f2fe',
-            fillOpacity: 1,
-            radius: 6
-        }).addTo(map).bindPopup('<b>您的當前位置</b>').openPopup();
+// ================================================
+// 繪製捷運站點
+// ================================================
+function drawMrtStations() {
+    MRT_GREEN_LINE.forEach((s, idx) => {
+        const isTerminal = s.terminal;
+        const isTransfer = s.transfer;
 
-        map.setView([lat, lng], 15);
-    }
-
-    function locateUserOnMap() {
-        const status = document.getElementById('map-status');
-        if (navigator.geolocation) {
-            status.innerHTML = '<span class="text-accent small mt-2 d-block"><i class="fa-solid fa-spinner fa-spin me-1"></i>正在尋找您的 GPS 定位...</span>';
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lng = position.coords.longitude;
-                    markUserPosition(lat, lng);
-                    status.innerHTML = '<span class="text-success small mt-2 d-block"><i class="fa-solid fa-circle-check me-1"></i>定位完成，已顯示周邊站點！</span>';
-                },
-                (error) => {
-                    status.innerHTML = '<span class="text-danger small mt-2 d-block"><i class="fa-solid fa-triangle-exclamation me-1"></i>無法獲取定位權限。</span>';
-                }
-            );
-        } else {
-            status.innerHTML = '<span class="text-danger small mt-2 d-block">您的瀏覽器不支援定位功能。</span>';
-        }
-    }
-
-    // 模擬台中火車站與市府周邊的站點資料
-    const mockStations = [
-        // MRT 捷運 (Blue/Green Markers)
-        { name: "捷運台中市政府站", type: "mrt", lat: 24.1628, lng: 120.6483, info: "台中捷運綠線 • 班次正常" },
-        { name: "捷運水安宮站", type: "mrt", lat: 24.1528, lng: 120.6486, info: "台中捷運綠線 • 班次正常" },
-        { name: "捷運文心森林公園站", type: "mrt", lat: 24.1432, lng: 120.6487, info: "台中捷運綠線 • 班次正常" },
-
-        // Bus 公車 (Yellow Markers)
-        { name: "台中車站 (台灣大道)", type: "bus", lat: 24.1378, lng: 120.6860, info: "路線: 300, 301, 302, 310 • 即將到站" },
-        { name: "新光/遠百公車站", type: "bus", lat: 24.1654, lng: 120.6438, info: "路線: 300, 303, 304, 307 • 到站時間約 3 分鐘" },
-        { name: "科博館 (專用道)", type: "bus", lat: 24.1561, lng: 120.6654, info: "路線: 300, 310, 48 • 到站時間約 1 分鐘" },
-
-        // Bike 腳踏車 (Green Markers)
-        { name: "YouBike 2.0 台中火車站前廣場", type: "bike", lat: 24.1370, lng: 120.6872, info: "可借: 18 輛 • 可還: 22 輛" },
-        { name: "YouBike 2.0 市政府 (惠中路)", type: "bike", lat: 24.1620, lng: 120.6475, info: "可借: 12 輛 • 可還: 18 輛" },
-        { name: "YouBike 2.0 勤美誠品綠園道", type: "bike", lat: 24.1509, lng: 120.6635, info: "可借: 5 輛 • 可還: 25 輛" }
-    ];
-
-    function loadStationMarkers() {
-        refreshMarkers();
-    }
-
-    function refreshMarkers() {
-        markersLayer.clearLayers();
-
-        const showMRT = document.getElementById('layerMRT').checked;
-        const showBus = document.getElementById('layerBus').checked;
-        const showBike = document.getElementById('layerBike').checked;
-
-        mockStations.forEach(station => {
-            if (station.type === 'mrt' && !showMRT) return;
-            if (station.type === 'bus' && !showBus) return;
-            if (station.type === 'bike' && !showBike) return;
-
-            let markerColor = '#8a2be2'; // default MRT (Purple)
-            let iconShape = '<i class="fa-solid fa-train-subway"></i>';
-            if (station.type === 'bus') {
-                markerColor = '#ffc107'; // Bus (Yellow)
-                iconShape = '<i class="fa-solid fa-bus"></i>';
-            } else if (station.type === 'bike') {
-                markerColor = '#198754'; // Bike (Green)
-                iconShape = '<i class="fa-solid fa-bicycle"></i>';
-            }
-
-            // 建立自訂的 Leaflet DivIcon 讓圖示維持我們的極簡與發光特效
-            const customIcon = L.divIcon({
-                className: 'custom-map-marker',
-                html: `<div style="background-color: ${markerColor}; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 2px solid white; box-shadow: 0 0 10px ${markerColor}60; font-size: 0.95rem;">${iconShape}</div>`,
-                iconSize: [34, 34],
-                iconAnchor: [17, 17]
-            });
-
-            L.marker([station.lat, station.lng], { icon: customIcon })
-                .addTo(markersLayer)
-                .bindPopup(`
-                    <div style="font-family: var(--font-body); padding: 5px;">
-                        <h6 style="margin: 0 0 5px 0; font-weight: 700; color: #1f2937;">${station.name}</h6>
-                        <p style="margin: 0; font-size: 0.85rem; color: #4b5563;">${station.info}</p>
-                    </div>
-                `);
+        const icon = L.divIcon({
+            className: '',
+            html: `<div style="
+                width: ${isTerminal ? 22 : 16}px;
+                height: ${isTerminal ? 22 : 16}px;
+                background: #00b894;
+                border: ${isTerminal ? 3 : 2.5}px solid white;
+                border-radius: 50%;
+                box-shadow: 0 0 0 ${isTerminal ? 3 : 2}px #00b894, 0 2px 6px rgba(0,0,0,0.2);
+                ${isTransfer ? 'box-shadow: 0 0 0 3px #ff9f43, 0 2px 8px rgba(0,0,0,0.3);' : ''}
+            "></div>`,
+            iconSize: [isTerminal ? 22 : 16, isTerminal ? 22 : 16],
+            iconAnchor: [isTerminal ? 11 : 8, isTerminal ? 11 : 8],
         });
+
+        const marker = L.marker([s.lat, s.lng], { icon })
+            .addTo(layerGroups.mrt)
+            .on('click', () => showStationInfo({
+                name: s.name + '站',
+                type: 'mrt',
+                typeName: '台中捷運綠線',
+                route: `台中捷運綠線 • 站號 ${s.id}`,
+                realtime: `往北屯總站 / 往高鐵台中站${isTransfer ? ' 【轉乘站】' : ''}`,
+                lat: s.lat,
+                lng: s.lng,
+                color: '#00b894'
+            }));
+
+        // 站名標籤（只顯示重要站）
+        if (isTerminal || isTransfer || [2, 5, 8, 11, 14].includes(idx)) {
+            L.tooltip({
+                permanent: true,
+                direction: idx % 2 === 0 ? 'right' : 'left',
+                className: 'mrt-label-tooltip',
+                offset: [10, 0]
+            })
+            .setContent(`<span style="font-family:var(--font-body);font-size:0.75rem;font-weight:700;color:#00b894;">${s.name}</span>`)
+            .setLatLng([s.lat, s.lng])
+            .addTo(map);
+        }
+
+        allMarkerData.push({ ...s, marker, layerType: 'mrt' });
+    });
+}
+
+// ================================================
+// 繪製公車站
+// ================================================
+function drawBusStops() {
+    BUS_STOPS.forEach(s => {
+        const icon = L.divIcon({
+            className: '',
+            html: `<div style="
+                width: 28px; height: 28px;
+                background: #ff9f43;
+                border-radius: 50% 50% 50% 0;
+                transform: rotate(-45deg);
+                border: 2px solid white;
+                box-shadow: 0 2px 8px rgba(255,159,67,0.4);
+                display:flex; align-items:center; justify-content:center;
+            "><span style="transform:rotate(45deg);font-size:0.7rem;color:white;">🚌</span></div>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 28],
+        });
+
+        const marker = L.marker([s.lat, s.lng], { icon })
+            .addTo(layerGroups.bus)
+            .on('click', () => showStationInfo({
+                name: s.name,
+                type: 'bus',
+                typeName: '公車站牌',
+                route: `路線：${s.routes.join('、')} 號`,
+                realtime: `即時班次：${s.routes[0]} 號約 ${Math.floor(Math.random() * 8 + 1)} 分鐘到站`,
+                lat: s.lat,
+                lng: s.lng,
+                color: '#ff9f43'
+            }));
+
+        allMarkerData.push({ ...s, marker, layerType: 'bus' });
+    });
+}
+
+// ================================================
+// 繪製 YouBike 站
+// ================================================
+function drawYouBikeStations() {
+    YOUBIKE_STATIONS.forEach(s => {
+        const bikeRatio = s.bikes / (s.bikes + s.docks);
+        const statusColor = bikeRatio > 0.5 ? '#00b894' : bikeRatio > 0.2 ? '#ff9f43' : '#e74c3c';
+
+        const icon = L.divIcon({
+            className: '',
+            html: `<div style="
+                width: 32px; height: 32px;
+                background: #6c5ce7;
+                border-radius: 8px;
+                border: 2px solid white;
+                box-shadow: 0 2px 8px rgba(108,92,231,0.35);
+                display:flex; align-items:center; justify-content:center;
+                font-size: 0.85rem; color: white;
+            ">🚲</div>`,
+            iconSize: [32, 32],
+            iconAnchor: [16, 16],
+        });
+
+        const marker = L.marker([s.lat, s.lng], { icon })
+            .addTo(layerGroups.bike)
+            .on('click', () => showStationInfo({
+                name: s.name,
+                type: 'bike',
+                typeName: 'YouBike 2.0 租借站',
+                route: `可借車輛：${s.bikes} 輛 ／ 可還空位：${s.docks} 格`,
+                realtime: `狀態：${bikeRatio > 0.5 ? '✅ 車輛充足' : bikeRatio > 0.2 ? '⚠️ 車輛有限' : '❌ 幾乎無車'}`,
+                lat: s.lat,
+                lng: s.lng,
+                color: '#6c5ce7'
+            }));
+
+        allMarkerData.push({ ...s, marker, layerType: 'bike' });
+    });
+}
+
+// ================================================
+// 顯示站點資訊於側欄
+// ================================================
+function showStationInfo(info) {
+    document.getElementById('station-placeholder').style.display = 'none';
+    const card = document.getElementById('station-info-card');
+    card.classList.add('visible');
+
+    const badge = document.getElementById('s-type-badge');
+    badge.textContent = info.typeName;
+    badge.style.background = info.color;
+
+    document.getElementById('s-name').textContent = info.name;
+    document.getElementById('s-type-text').textContent = info.typeName;
+    document.getElementById('s-route').textContent = info.route;
+    document.getElementById('s-realtime').textContent = info.realtime;
+    document.getElementById('s-coord').textContent = `${info.lat.toFixed(4)}, ${info.lng.toFixed(4)}`;
+
+    // 捲動到站點資訊
+    document.getElementById('selected-station-section').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // 地圖聚焦
+    map.setView([info.lat, info.lng], 15, { animate: true });
+}
+
+// ================================================
+// 圖層控制
+// ================================================
+function refreshMap() {
+    const showMrt = document.getElementById('chk-mrt').checked;
+    const showBus = document.getElementById('chk-bus').checked;
+    const showBike = document.getElementById('chk-bike').checked;
+    const showRoute = document.getElementById('chk-route').checked;
+
+    showMrt ? layerGroups.mrt.addTo(map) : map.removeLayer(layerGroups.mrt);
+    showBus ? layerGroups.bus.addTo(map) : map.removeLayer(layerGroups.bus);
+    showBike ? layerGroups.bike.addTo(map) : map.removeLayer(layerGroups.bike);
+    showRoute ? layerGroups.route.addTo(map) : map.removeLayer(layerGroups.route);
+}
+
+// ================================================
+// GPS 定位
+// ================================================
+function locateUser() {
+    const status = document.getElementById('locate-status');
+    const btn = document.getElementById('btn-locate');
+    if (!navigator.geolocation) {
+        status.textContent = '您的瀏覽器不支援定位功能';
+        return;
     }
+
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 定位中...';
+    btn.disabled = true;
+
+    navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        if (userMarker) map.removeLayer(userMarker);
+        userMarker = L.layerGroup([
+            L.circle([lat, lng], { radius: 80, color: '#ff75a0', fillColor: '#ff75a0', fillOpacity: 0.1, weight: 2 }),
+            L.circleMarker([lat, lng], { radius: 7, color: '#ff75a0', fillColor: '#ff75a0', fillOpacity: 1, weight: 3 })
+                .bindPopup('<strong style="font-family:var(--font-body)">您的位置</strong>')
+        ]).addTo(map);
+
+        map.setView([lat, lng], 15, { animate: true });
+        status.innerHTML = '<span style="color:#00b894;">✅ 定位完成！</span>';
+        btn.innerHTML = '<i class="fa-solid fa-crosshairs"></i> 搜尋我的周邊站點';
+        btn.disabled = false;
+    }, () => {
+        status.innerHTML = '<span style="color:#e74c3c;">❌ 無法取得定位權限</span>';
+        btn.innerHTML = '<i class="fa-solid fa-crosshairs"></i> 搜尋我的周邊站點';
+        btn.disabled = false;
+    });
+}
+
+// ================================================
+// 地圖搜尋過濾
+// ================================================
+function filterMapSearch(query) {
+    if (!query.trim()) {
+        // 恢復所有
+        allMarkerData.forEach(d => {
+            if (d.marker && d.marker.setOpacity) d.marker.setOpacity(1);
+        });
+        return;
+    }
+    allMarkerData.forEach(d => {
+        const match = d.name && d.name.includes(query.trim());
+        if (d.marker && d.marker.setOpacity) {
+            d.marker.setOpacity(match ? 1 : 0.15);
+        }
+    });
+}
+
+// ================================================
+// 側欄 — 建立捷運路線圖
+// ================================================
+function buildSidebarMrtLine() {
+    const container = document.getElementById('mrt-line-strip');
+    let html = '';
+    MRT_GREEN_LINE.forEach((s, idx) => {
+        const isLast = idx === MRT_GREEN_LINE.length - 1;
+        html += `
+        <div class="mrt-line-stop ${s.terminal ? 'terminal' : ''}" id="mrt-sidebar-${s.id}"
+             onclick="focusMrtStation('${s.id}', ${s.lat}, ${s.lng})">
+            <div class="mrt-line-icon-col">
+                <div class="mrt-line-node" style="${s.terminal ? 'width:16px;height:16px;' : ''} ${s.transfer ? 'box-shadow:0 0 0 2px #ff9f43,0 0 0 4px white;' : ''}"></div>
+                ${!isLast ? '<div class="mrt-line-connector"></div>' : ''}
+            </div>
+            <span class="mrt-stop-name">${s.name}${s.terminal ? ' 🔚' : ''}${s.transfer ? ' 🔄' : ''}</span>
+            <span class="mrt-stop-num">${s.id}</span>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+function focusMrtStation(id, lat, lng) {
+    document.querySelectorAll('.mrt-line-stop').forEach(el => el.classList.remove('active'));
+    document.getElementById('mrt-sidebar-' + id)?.classList.add('active');
+    const s = MRT_GREEN_LINE.find(s => s.id === id);
+    if (s) showStationInfo({
+        name: s.name + '站',
+        type: 'mrt',
+        typeName: '台中捷運綠線',
+        route: `台中捷運綠線 • 站號 ${s.id}`,
+        realtime: `往北屯總站 / 往高鐵台中站${s.transfer ? ' 【轉乘站】' : ''}`,
+        lat: s.lat, lng: s.lng, color: '#00b894'
+    });
+}
+
+// ================================================
+// 側欄 — 建立公車路線清單
+// ================================================
+function buildSidebarBusRoutes() {
+    const container = document.getElementById('bus-routes-list');
+    container.innerHTML = BUS_ROUTES_INFO.map(r => `
+    <div class="bus-route-item">
+        <span class="bus-route-num">${r.num}</span>
+        <div class="bus-route-info">
+            <div class="bus-route-name">${r.name}</div>
+            <div class="bus-route-stops">${r.stops}</div>
+        </div>
+    </div>`).join('');
+}
+
+// ================================================
+// 時間戳更新
+// ================================================
+function updateTimestamp() {
+    const now = new Date();
+    const s = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')} 更新`;
+    document.getElementById('last-update-time').textContent = s;
+}
 </script>
+
+<!-- 捷運站標籤樣式 -->
+<style>
+.mrt-label-tooltip {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+.mrt-label-tooltip::before { display: none !important; }
+</style>
 {% endblock %}

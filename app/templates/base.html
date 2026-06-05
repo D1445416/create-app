@@ -16,9 +16,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     {% block head %}{% endblock %}
 </head>
-<body class="bg-dark-premium text-light">
+<body>
     <!-- Glassmorphism Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-glass sticky-top">
+    <nav class="navbar navbar-expand-lg navbar-light bg-glass sticky-top">
         <div class="container">
             <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.index') }}">
                 <div class="brand-icon me-2">
@@ -33,7 +33,17 @@
                 <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item">
                         <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{{ url_for('main.index') }}">
-                            <i class="fa-solid fa-route me-1"></i> 路線規劃
+                            <i class="fa-solid fa-gauge me-1"></i> 儀表看板
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/search' %}active{% endif %}" href="{{ url_for('views.one_stop_search') }}">
+                            <i class="fa-solid fa-magnifying-glass me-1"></i> 一站式查詢
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/planner' %}active{% endif %}" href="{{ url_for('f03.route_planner') }}">
+                            <i class="fa-solid fa-compass me-1"></i> 路徑規劃
                         </a>
                     </li>
                     <li class="nav-item">
@@ -41,12 +51,17 @@
                             <i class="fa-solid fa-map-location-dot me-1"></i> 即時地圖
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/favorites' %}active{% endif %}" href="{{ url_for('main.show_favorites') }}">
+                            <i class="fa-solid fa-star me-1 text-warning"></i> 收藏站點
+                        </a>
+                    </li>
                     {% if session.get('user_id') %}
                         <li class="nav-item dropdown ms-lg-3">
-                            <a class="nav-link dropdown-toggle btn btn-outline-accent px-3 py-1.5 mt-2 mt-lg-0 text-light d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <a class="nav-link dropdown-toggle btn btn-outline-accent px-3 py-1.5 mt-2 mt-lg-0 d-flex align-items-center" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fa-solid fa-user-astronaut me-2"></i> {{ session.get('username') }}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end bg-dropdown border-accent-glow" aria-labelledby="navbarDropdown">
+                            <ul class="dropdown-menu dropdown-menu-light dropdown-menu-end bg-dropdown border-accent-glow" aria-labelledby="navbarDropdown">
                                 <li>
                                     <span class="dropdown-item-text text-muted small">
                                         <i class="fa-solid fa-id-badge me-1"></i> ID: {{ session.get('user_id') }}

@@ -1,15 +1,11 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}多運具轉乘路徑演算 - 交通資訊整合平台{% endblock %}
 
-{% block styles %}
+{% block head %}
 <!-- Leaflet.js CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <style>
-    body {
-        background-color: #f1f3f7;
-    }
-    
     /* 質感 Glassmorphism 卡片 */
     .glass-card {
         background: rgba(255, 255, 255, 0.9);
@@ -27,6 +23,7 @@
     }
     
     .map-container {
+        position: relative;
         height: 650px;
         border-radius: 16px;
         box-shadow: 0 10px 35px rgba(0, 0, 0, 0.06);
@@ -339,142 +336,205 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    // 1. 初始化地圖，預設中心點設在台中市政府捷運站
-    const map = L.map('map').setView([24.1629, 120.6438], 13);
-    
-    // 2. 載入 CartoDB Positron 淺色質感圖磚，呈現極致專業的交通平台質感
+    // 1. 初始化地圖
+    const map = L.map('map').setView([24.155, 120.655], 13);
+
+    // 2. 淺色地圖圖磚（與整體風格一致）
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
         subdomains: 'abcd',
         maxZoom: 20
     }).addTo(map);
 
-    // 3. 取得後端傳過來的 JSON 資料
+    // 3. 後端資料
     const routeData = {{ route_result | tojson if route_result else 'null' }};
     const allLandmarks = {{ landmarks | tojson if landmarks else '[]' }};
-    
-    // 所有地標座標定義
+
+    // 所有地標座標（供無路線時顯示）
     const landmarkCoords = {
-        '台中車站': [24.1373, 120.6868],
-        '市政府捷運站': [24.1629, 120.6438],
-        '逢甲大學': [24.1798, 120.6450],
-        '一中商圈': [24.1487, 120.6853],
-        '東海大學': [24.1802, 120.6013],
-        '高鐵台中站': [24.1121, 120.6162],
-        '國家歌劇院': [24.1627, 120.6404],
-        '勤美誠品綠園道': [24.1513, 120.6638],
-        '秋紅谷': [24.1674, 120.6397]
+        '台中車站':        [24.1373, 120.6868],
+        '市政府捷運站':    [24.1629, 120.6438],
+        '逢甲大學':        [24.1798, 120.6450],
+        '一中商圈':        [24.1487, 120.6853],
+        '東海大學':        [24.1802, 120.6013],
+        '高鐵台中站':      [24.1121, 120.6162],
+        '國家歌劇院':      [24.1627, 120.6404],
+        '勤美誠品綠園道':  [24.1513, 120.6638],
+        '秋紅谷':          [24.1674, 120.6397],
+        '科博館':          [24.1561, 120.6654],
+        '水安宮捷運站':    [24.1528, 120.6486],
+        '文心森林公園捷運站': [24.1432, 120.6487],
+        '大慶捷運站':      [24.1172, 120.6303],
     };
 
-    if (routeData && routeData.route_coords && routeData.route_coords.length > 0) {
-        const coords = routeData.route_coords;
+    // 各運具顏色
+    const modeColors = {
+        'mrt':    '#00b894',  // 捷運 綠
+        'bus':    '#ff9f43',  // 公車 橘
+        'youbike':'#6c5ce7',  // YouBike 紫
+        'train':  '#0984e3',  // 火車 藍
+        'walk':   '#a8b8d0'   // 步行 灰
+    };
+
+    // ---- 有路線結果時 ----
+    if (routeData && routeData.steps && routeData.steps.length > 0) {
         const steps = routeData.steps;
-        
-        // 運具線條色彩定義
-        const modeColors = {
-            'mrt': '#008e4f',     // 捷運綠
-            'bus': '#f29400',     // 公車橘黃
-            'youbike': '#8cc63f', // YouBike 草綠
-            'train': '#005087',   // 火車深藍
-            'walk': '#868e96'     // 步行灰色
-        };
+        const boundsPoints = [];
 
-        const bounds = [];
-        
-        // A. 繪製起點標記
-        const startPoint = coords[0];
-        const startLatLng = [startPoint.lat, startPoint.lng];
-        bounds.push(startLatLng);
-        
-        L.marker(startLatLng, {
-            icon: L.divIcon({
-                className: 'leaflet-icon-custom icon-start',
-                html: '<i class="bi bi-geo-alt-fill"></i>',
-                iconSize: [32, 32],
-                iconAnchor: [16, 16]
-            })
-        }).addTo(map).bindPopup(`<b>起點：${startPoint.name}</b>`).openPopup();
-
-        // B. 逐段繪製連線與轉乘標記
-        for (let i = 0; i < steps.length; i++) {
-            const step = steps[i];
-            const fromNode = coords[i];
-            const toNode = coords[i+1];
-            const toLatLng = [toNode.lat, toNode.lng];
-            bounds.push(toLatLng);
-
-            const modeColor = modeColors[step.mode] || '#6c757d';
-            const isWalk = (step.mode === 'walk');
-
-            // 繪製路徑折線
-            const polyline = L.polyline([[fromNode.lat, fromNode.lng], toLatLng], {
-                color: modeColor,
-                weight: 6,
-                opacity: 0.85,
-                dashArray: isWalk ? '8, 8' : null
-            }).addTo(map);
-
-            polyline.bindPopup(`
-                <div style="font-family: system-ui;">
-                    <h6 style="margin: 0 0 5px 0; font-weight: bold; color: ${modeColor};">${step.mode_name} 路段</h6>
-                    <p style="margin: 0 0 3px 0; font-size: 13px;">${step.instruction}</p>
-                    <small style="color: #6c757d;">花費時間: ${step.duration} 分鐘 | 票價: ${step.cost} 元</small>
-                </div>
-            `);
-
-            // C. 繪製終點或轉乘點標記
-            if (i === steps.length - 1) {
-                // 終點
-                L.marker(toLatLng, {
-                    icon: L.divIcon({
-                        className: 'leaflet-icon-custom icon-end',
-                        html: '<i class="bi bi-flag-fill"></i>',
-                        iconSize: [32, 32],
-                        iconAnchor: [16, 16]
-                    })
-                }).addTo(map).bindPopup(`<b>終點：${toNode.name}</b>`);
-            } else {
-                // 轉乘點
-                const modeIcons = {
-                    'mrt': 'bi-train-lightrail-front-fill',
-                    'bus': 'bi-bus-front-fill',
-                    'youbike': 'bi-bicycle',
-                    'train': 'bi-train-front-fill',
-                    'walk': 'bi-person-walking'
-                };
-                const iconClass = modeIcons[step.mode] || 'bi-geo-alt';
-
-                L.marker(toLatLng, {
-                    icon: L.divIcon({
-                        className: `leaflet-icon-custom icon-${step.mode}`,
-                        html: `<i class="bi ${iconClass}"></i>`,
-                        iconSize: [28, 28],
-                        iconAnchor: [14, 14]
-                    })
-                }).addTo(map).bindPopup(`
-                    <b>轉乘點：${toNode.name}</b><br>
-                    <span class="badge" style="background-color: ${modeColor};">${step.mode_name}</span>
-                `);
-            }
+        // 自訂 Marker 圖示
+        function makeIcon(type, label) {
+            const colors = { start: '#00b894', end: '#ff75a0', transfer: '#ff9f43' };
+            const bg = colors[type] || '#54a0ff';
+            return L.divIcon({
+                className: '',
+                html: `<div style="
+                    width:38px; height:38px;
+                    background:${bg};
+                    border-radius:50%;
+                    border:3px solid white;
+                    box-shadow:0 3px 10px rgba(0,0,0,0.2);
+                    display:flex; align-items:center; justify-content:center;
+                    color:white; font-size:1rem; font-weight:700;
+                ">${label}</div>`,
+                iconSize: [38, 38],
+                iconAnchor: [19, 19]
+            });
         }
 
-        // 縮放地圖至適應整條路線
-        map.fitBounds(bounds, { padding: [60, 60] });
+        // 起點 Marker
+        const startLoc = steps[0].from;
+        const startCoord = landmarkCoords[startLoc] || [24.155, 120.655];
+        boundsPoints.push(startCoord);
+        L.marker(startCoord, { icon: makeIcon('start', '🚀') })
+            .addTo(map)
+            .bindPopup(`<div style="font-family:var(--font-body);"><strong>🟢 出發地</strong><br>${startLoc}</div>`)
+            .openPopup();
+
+        // 逐段繪製路線
+        steps.forEach((step, idx) => {
+            const color = modeColors[step.mode] || '#94a3b8';
+            const isWalk = (step.mode === 'walk');
+
+            // 取得此段所有途徑座標（來自後端 waypoints）
+            let segCoords = [];
+            if (step.waypoints && step.waypoints.length >= 2) {
+                segCoords = step.waypoints.map(wp => [wp[0], wp[1]]);
+            } else {
+                // 備援：直接用 from → to
+                const fromC = landmarkCoords[step.from];
+                const toC   = landmarkCoords[step.to];
+                if (fromC && toC) segCoords = [fromC, toC];
+            }
+
+            if (segCoords.length >= 2) {
+                segCoords.forEach(c => boundsPoints.push(c));
+
+                // 白色外框（讓路線更清晰）
+                L.polyline(segCoords, {
+                    color: '#ffffff',
+                    weight: 10,
+                    opacity: 0.5,
+                }).addTo(map);
+
+                // 主線
+                const polyline = L.polyline(segCoords, {
+                    color: color,
+                    weight: 6,
+                    opacity: 0.9,
+                    dashArray: isWalk ? '10 8' : null,
+                    lineJoin: 'round',
+                    lineCap: 'round'
+                }).addTo(map);
+
+                // 點擊路線顯示段資訊
+                polyline.bindPopup(`
+                    <div style="font-family:var(--font-body); padding:4px;">
+                        <div style="font-size:0.9rem; font-weight:700; color:${color}; margin-bottom:4px;">
+                            ${step.mode_name} 路段
+                        </div>
+                        <div style="font-size:0.82rem; color:#374151;">${step.instruction}</div>
+                        <div style="font-size:0.78rem; color:#6b7280; margin-top:4px;">
+                            🕐 ${step.duration} 分鐘 &nbsp;|&nbsp; 💰 ${step.cost > 0 ? step.cost + ' 元' : '免費'}
+                        </div>
+                    </div>
+                `);
+
+                // 中間方向箭頭標示
+                if (segCoords.length >= 3) {
+                    const midIdx = Math.floor(segCoords.length / 2);
+                    const midPoint = segCoords[midIdx];
+                    const modeEmoji = { mrt: '🚇', bus: '🚌', youbike: '🚲', train: '🚆', walk: '🚶' };
+                    L.marker(midPoint, {
+                        icon: L.divIcon({
+                            className: '',
+                            html: `<div style="
+                                background:${color};
+                                color:white;
+                                border-radius:20px;
+                                padding:2px 8px;
+                                font-size:0.72rem;
+                                font-weight:700;
+                                white-space:nowrap;
+                                box-shadow:0 2px 6px rgba(0,0,0,0.15);
+                                border:1.5px solid white;
+                            ">${modeEmoji[step.mode] || '▶'} ${step.mode_name} ${step.duration}分</div>`,
+                            iconSize: [70, 22],
+                            iconAnchor: [35, 11]
+                        }),
+                        interactive: false,
+                        zIndexOffset: -100
+                    }).addTo(map);
+                }
+            }
+
+            // 轉乘點 Marker（非最後一段）
+            const toC = landmarkCoords[step.to];
+            if (toC) {
+                boundsPoints.push(toC);
+                if (idx < steps.length - 1) {
+                    L.marker(toC, { icon: makeIcon('transfer', '🔄') })
+                        .addTo(map)
+                        .bindPopup(`
+                            <div style="font-family:var(--font-body);">
+                                <strong>🔄 轉乘點</strong><br>
+                                ${step.to}<br>
+                                <span style="font-size:0.8rem;color:#6b7280;">
+                                    接下來搭乘 ${steps[idx+1] ? steps[idx+1].mode_name : ''}
+                                </span>
+                            </div>
+                        `);
+                } else {
+                    // 終點 Marker
+                    L.marker(toC, { icon: makeIcon('end', '🏁') })
+                        .addTo(map)
+                        .bindPopup(`<div style="font-family:var(--font-body);"><strong>🔴 目的地</strong><br>${step.to}</div>`);
+                }
+            }
+        });
+
+        // 縮放至整條路線
+        if (boundsPoints.length > 0) {
+            map.fitBounds(boundsPoints, { padding: [50, 50] });
+        }
+
     } else {
-        // 如果目前沒有搜尋路線，在地圖上列出所有的地標，讓地圖看起來非常生動
+        // ---- 無路線時：顯示所有地標 ----
         const bounds = [];
         for (const [name, coord] of Object.entries(landmarkCoords)) {
-            L.marker(coord, {
-                title: name
+            L.circleMarker(coord, {
+                radius: 8,
+                color: '#54a0ff',
+                fillColor: '#54a0ff',
+                fillOpacity: 0.7,
+                weight: 2
             }).addTo(map).bindPopup(`
-                <div style="text-align: center;">
-                    <h6 style="margin: 0; font-weight: bold;">${name}</h6>
-                    <small style="color: #6c757d;">大眾運輸整合站點</small>
+                <div style="font-family:var(--font-body); text-align:center;">
+                    <strong>${name}</strong><br>
+                    <small style="color:#6b7280;">點擊上方選單選擇此地點</small>
                 </div>
             `);
             bounds.push(coord);
         }
-        
         if (bounds.length > 0) {
             map.fitBounds(bounds, { padding: [40, 40] });
         }

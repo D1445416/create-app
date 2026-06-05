@@ -35,144 +35,65 @@
 
         <!-- Transit Options Container -->
         <div class="d-flex flex-column gap-4">
-            
-            <!-- Option 1: Premium / Recommended Option -->
-            <div class="glass-card p-4 border-accent-glow position-relative">
-                <div class="position-absolute top-0 end-0 m-3">
-                    <span class="badge bg-success border border-success-subtle text-light px-2.5 py-1.5 rounded-pill"><i class="fa-solid fa-thumbs-up me-1"></i> 系統最佳推薦</span>
-                </div>
+            {% if search_result and search_result.details %}
+                {% for option in search_result.details %}
+                    <div class="glass-card p-4 {% if loop.first %}border-accent-glow{% endif %} position-relative animate-fade-in">
+                        {% if loop.first %}
+                            <div class="position-absolute top-0 end-0 m-3">
+                                <span class="badge bg-success border border-success-subtle text-light px-2.5 py-1.5 rounded-pill"><i class="fa-solid fa-thumbs-up me-1"></i> 系統最佳推薦</span>
+                            </div>
+                        {% endif %}
 
-                <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-                    <h4 class="mb-0 text-accent font-semibold">路線方案 A</h4>
-                    <span class="route-badge route-badge-purple"><i class="fa-solid fa-train-subway me-1"></i>捷運 + 步行</span>
-                    <span class="route-badge route-badge-teal"><i class="fa-solid fa-dollar-sign me-1"></i>NT$ 35</span>
-                </div>
+                        <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+                            <h4 class="mb-0 {% if loop.first %}text-accent{% else %}text-light{% endif %} font-semibold">{{ option.option_name }}</h4>
+                            <span class="route-badge route-badge-teal"><i class="fa-solid fa-dollar-sign me-1"></i>NT$ {{ option.cost }}</span>
+                        </div>
 
-                <!-- Timeline / Segments -->
-                <div class="row g-3 py-3 border-top border-bottom border-glass-subtle my-3">
-                    <div class="col-md-3 text-center border-end border-glass-subtle">
-                        <div class="text-accent fs-1 font-extrabold mb-0">25</div>
-                        <div class="text-light-muted small font-semibold">總預估時間 (分鐘)</div>
-                    </div>
-                    <div class="col-md-9 px-md-4">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="p-2 bg-glass border-glass-subtle rounded-3 text-light-muted me-3" style="width: 38px; text-align: center;"><i class="fa-solid fa-person-walking"></i></div>
-                            <div>
-                                <div class="font-semibold text-light">出發點步行</div>
-                                <div class="text-muted small">步行約 3 分鐘 (200m) 前往「捷運市政府站」</div>
+                        <!-- Timeline / Segments -->
+                        <div class="row g-3 py-3 border-top border-bottom border-glass-subtle my-3">
+                            <div class="col-md-3 text-center border-end border-glass-subtle d-flex flex-column justify-content-center">
+                                <div class="text-accent fs-1 font-extrabold mb-0">{{ option.total_time }}</div>
+                                <div class="text-light-muted small font-semibold">總預估時間 (分鐘)</div>
+                            </div>
+                            <div class="col-md-9 px-md-4">
+                                {% for seg in option.segments %}
+                                    <div class="d-flex align-items-center {% if not loop.last %}mb-3{% endif %}">
+                                        <div class="p-2 bg-glass border-glass-subtle rounded-3 me-3 text-center" style="width: 38px;">
+                                            {% if seg.type == 'mrt' %}
+                                                <i class="fa-solid fa-train-subway text-accent"></i>
+                                            {% elif seg.type == 'bus' %}
+                                                <i class="fa-solid fa-bus text-warning"></i>
+                                            {% elif seg.type == 'youbike' %}
+                                                <i class="fa-solid fa-bicycle text-success"></i>
+                                            {% else %}
+                                                <i class="fa-solid fa-person-walking text-light-muted"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <div class="font-semibold text-light">
+                                                {% if seg.type == 'mrt' %}捷運綠線
+                                                {% elif seg.type == 'bus' %}公車轉乘
+                                                {% elif seg.type == 'youbike' %}YouBike 騎乘
+                                                {% else %}步行段落{% endif %}
+                                            </div>
+                                            <div class="text-muted small">{{ seg.text }}</div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
                             </div>
                         </div>
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="p-2 bg-glass border-glass-subtle rounded-3 text-accent me-3" style="width: 38px; text-align: center;"><i class="fa-solid fa-train-subway"></i></div>
-                            <div>
-                                <div class="font-semibold text-light">搭乘 台中捷運綠線 (往高鐵台中站方向)</div>
-                                <div class="text-muted small">捷運市政府站 ➡️ 捷運文心森林公園站 (3 站) • 乘車時間約 6 分鐘</div>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <div class="p-2 bg-glass border-glass-subtle rounded-3 text-light-muted me-3" style="width: 38px; text-align: center;"><i class="fa-solid fa-person-walking"></i></div>
-                            <div>
-                                <div class="font-semibold text-light">抵達捷運文心森林公園站</div>
-                                <div class="text-muted small">步行約 4 分鐘 (250m) 抵達目的地</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="d-flex justify-content-between align-items-center">
-                    <span class="text-muted small"><i class="fa-regular fa-clock me-1"></i>每 8 分鐘一班車</span>
-                    <button class="btn btn-outline-accent btn-sm rounded-pill px-3">查看站點明細</button>
-                </div>
-            </div>
-
-            <!-- Option 2: Fastest Option -->
-            <div class="glass-card p-4">
-                <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-                    <h4 class="mb-0 text-light font-semibold">路線方案 B (公車專用道)</h4>
-                    <span class="route-badge route-badge-purple"><i class="fa-solid fa-bus-simple me-1"></i>優化公車</span>
-                    <span class="route-badge route-badge-teal"><i class="fa-solid fa-dollar-sign me-1"></i>NT$ 20 (使用市民卡免費)</span>
-                </div>
-
-                <div class="row g-3 py-3 border-top border-bottom border-glass-subtle my-3">
-                    <div class="col-md-3 text-center border-end border-glass-subtle">
-                        <div class="text-warning fs-1 font-extrabold mb-0">32</div>
-                        <div class="text-light-muted small font-semibold">總預估時間 (分鐘)</div>
-                    </div>
-                    <div class="col-md-9 px-md-4">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="p-2 bg-glass border-glass-subtle rounded-3 text-light-muted me-3" style="width: 38px; text-align: center;"><i class="fa-solid fa-person-walking"></i></div>
-                            <div>
-                                <div class="font-semibold text-light">步行至公車站</div>
-                                <div class="text-muted small">步行約 2 分鐘 前往「市政府 (專用道)」公車站</div>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="p-2 bg-glass border-glass-subtle rounded-3 text-warning me-3" style="width: 38px; text-align: center;"><i class="fa-solid fa-bus"></i></div>
-                            <div>
-                                <div class="font-semibold text-light">搭乘 300 / 310 / 304 快捷公車</div>
-                                <div class="text-muted small">市政府 (專用道) ➡️ 台中車站 (5 站) • 乘車時間約 18 分鐘</div>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <div class="p-2 bg-glass border-glass-subtle rounded-3 text-light-muted me-3" style="width: 38px; text-align: center;"><i class="fa-solid fa-person-walking"></i></div>
-                            <div>
-                                <div class="font-semibold text-light">抵達台中車站</div>
-                                <div class="text-muted small">下車步行約 3 分鐘抵達終點</div>
-                            </div>
+                        
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="text-muted small"><i class="fa-regular fa-clock me-1"></i>每 10-15 分鐘一班車</span>
+                            <a href="{{ url_for('main.transit_map') }}" class="btn btn-outline-accent btn-sm rounded-pill px-3">查看地圖</a>
                         </div>
                     </div>
+                {% endfor %}
+            {% else %}
+                <div class="text-center py-5 text-muted">
+                    <p>無可行路線方案規劃資料。</p>
                 </div>
-
-                <div class="d-flex justify-content-between align-items-center">
-                    <span class="text-muted small"><i class="fa-regular fa-clock me-1"></i>公車即將於 3 分鐘後到站</span>
-                    <button class="btn btn-outline-accent btn-sm rounded-pill px-3">查看站點明細</button>
-                </div>
-            </div>
-
-            <!-- Option 3: Bike Option -->
-            <div class="glass-card p-4">
-                <div class="d-flex flex-wrap align-items-center gap-3 mb-3">
-                    <h4 class="mb-0 text-light font-semibold">路線方案 C (低碳環保)</h4>
-                    <span class="route-badge route-badge-purple"><i class="fa-solid fa-bicycle me-1"></i>YouBike 2.0</span>
-                    <span class="route-badge route-badge-teal"><i class="fa-solid fa-dollar-sign me-1"></i>NT$ 10</span>
-                </div>
-
-                <div class="row g-3 py-3 border-top border-bottom border-glass-subtle my-3">
-                    <div class="col-md-3 text-center border-end border-glass-subtle">
-                        <div class="text-info fs-1 font-extrabold mb-0">15</div>
-                        <div class="text-light-muted small font-semibold">總預估時間 (分鐘)</div>
-                    </div>
-                    <div class="col-md-9 px-md-4">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="p-2 bg-glass border-glass-subtle rounded-3 text-light-muted me-3" style="width: 38px; text-align: center;"><i class="fa-solid fa-person-walking"></i></div>
-                            <div>
-                                <div class="font-semibold text-light">步行至 YouBike 租借站</div>
-                                <div class="text-muted small">步行約 1 分鐘 前往「YouBike 市政府站」</div>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="p-2 bg-glass border-glass-subtle rounded-3 text-success me-3" style="width: 38px; text-align: center;"><i class="fa-solid fa-bicycle"></i></div>
-                            <div>
-                                <div class="font-semibold text-light">騎乘 YouBike 2.0</div>
-                                <div class="text-muted small">沿惠中路自行車道騎乘 2.2 公里 ➡️ 抵達目的地周邊 YouBike 站點</div>
-                            </div>
-                        </div>
-                        <div class="d-flex align-items-center">
-                            <div class="p-2 bg-glass border-glass-subtle rounded-3 text-light-muted me-3" style="width: 38px; text-align: center;"><i class="fa-solid fa-person-walking"></i></div>
-                            <div>
-                                <div class="font-semibold text-light">歸還自行車</div>
-                                <div class="text-muted small">歸還後步行約 1 分鐘抵達目的地</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="d-flex justify-content-between align-items-center">
-                    <span class="text-success small"><i class="fa-solid fa-circle-check me-1"></i>YouBike 站點剩餘車位足夠</span>
-                    <button class="btn btn-outline-accent btn-sm rounded-pill px-3">查看站點明細</button>
-                </div>
-            </div>
-
+            {% endif %}
         </div>
 
         <!-- Back Button -->

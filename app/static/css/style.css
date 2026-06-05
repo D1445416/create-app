@@ -1,32 +1,32 @@
 /* --- Core Color Variables & Design Tokens --- */
 :root {
-    --bg-base: #0a0b10;
-    --bg-card: rgba(20, 22, 34, 0.65);
-    --bg-glass: rgba(10, 11, 16, 0.75);
-    --border-glass: rgba(255, 255, 255, 0.08);
-    --border-accent-glow: rgba(0, 242, 254, 0.25);
+    --bg-base: #f7fafc;
+    --bg-card: #ffffff;
+    --bg-glass: rgba(255, 255, 255, 0.85);
+    --border-glass: rgba(255, 117, 160, 0.08); /* Minimal soft border */
+    --border-accent-glow: rgba(84, 160, 255, 0.15);
     
-    --color-primary: #8a2be2; /* Electric Purple */
-    --color-secondary: #00f2fe; /* Cyber Teal */
-    --color-accent-gradient: linear-gradient(135deg, #8a2be2 0%, #00f2fe 100%);
+    --color-primary: #ff75a0; /* Soft Pink */
+    --color-secondary: #54a0ff; /* Soft Blue */
+    --color-accent-gradient: linear-gradient(135deg, #ff75a0 0%, #54a0ff 100%);
     
-    --text-main: #f3f4f6;
-    --text-muted: #9ca3af;
-    --text-accent: #00f2fe;
+    --text-main: #2f3542; /* Soft Dark Slate */
+    --text-muted: #747d8c; /* Muted Slate */
+    --text-accent: #ff75a0;
     
-    --font-heading: 'Outfit', 'Noto Sans TC', sans-serif;
-    --font-body: 'Noto Sans TC', 'Outfit', sans-serif;
-    --shadow-accent-glow: 0 0 15px rgba(0, 242, 254, 0.15);
-    --shadow-purple-glow: 0 0 20px rgba(138, 43, 226, 0.2);
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --font-heading: "DFKai-SB", "BiauKai", "BiauKai TC", "Outfit", serif;
+    --font-body: "DFKai-SB", "BiauKai", "BiauKai TC", "Outfit", serif;
+    --shadow-accent-glow: 0 8px 30px rgba(84, 160, 255, 0.08);
+    --shadow-pink-glow: 0 8px 30px rgba(255, 117, 160, 0.08);
+    --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
 /* --- Base Body & Typography --- */
 body {
     background-color: var(--bg-base);
     background-image: 
-        radial-gradient(at 0% 0%, rgba(138, 43, 226, 0.15) 0px, transparent 50%),
-        radial-gradient(at 100% 100%, rgba(0, 242, 254, 0.1) 0px, transparent 50%);
+        radial-gradient(at 0% 0%, rgba(255, 117, 160, 0.08) 0px, transparent 40%),
+        radial-gradient(at 100% 100%, rgba(84, 160, 255, 0.08) 0px, transparent 40%);
     background-attachment: fixed;
     color: var(--text-main);
     font-family: var(--font-body);
@@ -40,6 +40,37 @@ h1, h2, h3, h4, h5, h6, .brand-text {
     letter-spacing: -0.02em;
 }
 
+/* --- Force light theme overrides for bootstrap text-light/white --- */
+.text-white {
+    color: var(--text-main) !important;
+}
+.text-white-50 {
+    color: var(--text-muted) !important;
+}
+.text-light {
+    color: var(--text-main) !important;
+}
+.text-light-muted {
+    color: var(--text-muted) !important;
+}
+
+/* Keep actual badges and buttons text white for contrast */
+.badge.text-white, 
+.btn.text-white, 
+.badge, 
+.btn-accent,
+.btn-info,
+.btn-danger,
+.btn-success,
+.btn-warning,
+.timeline-icon {
+    color: #ffffff !important;
+}
+/* Fix warning text */
+.badge.bg-warning {
+    color: #2f3542 !important;
+}
+
 /* --- Scrollbar Customization --- */
 ::-webkit-scrollbar {
     width: 8px;
@@ -49,11 +80,11 @@ h1, h2, h3, h4, h5, h6, .brand-text {
     background: var(--bg-base);
 }
 ::-webkit-scrollbar-thumb {
-    background: rgba(138, 43, 226, 0.3);
+    background: rgba(255, 117, 160, 0.25);
     border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(0, 242, 254, 0.5);
+    background: rgba(84, 160, 255, 0.45);
 }
 
 /* --- Glassmorphism Components --- */
@@ -61,33 +92,39 @@ h1, h2, h3, h4, h5, h6, .brand-text {
     background: var(--bg-glass);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    border-bottom: 1px solid var(--border-glass);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.03);
 }
 
 .glass-card {
     background: var(--bg-card);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid var(--border-glass);
-    border-radius: 16px;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: none; /* No boxy borders */
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(116, 125, 140, 0.05);
     transition: var(--transition-smooth);
 }
 
 .glass-card:hover {
-    border-color: rgba(0, 242, 254, 0.3);
+    border-color: transparent;
     box-shadow: 
-        0 8px 32px 0 rgba(0, 0, 0, 0.37),
-        0 0 15px rgba(0, 242, 254, 0.1);
-    transform: translateY(-2px);
+        0 15px 45px rgba(255, 117, 160, 0.12);
+    transform: translateY(-3px);
 }
 
 /* --- Navigation bar --- */
+.navbar {
+    background: var(--bg-glass) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.03) !important;
+}
+
 .navbar-brand .brand-icon {
     width: 38px;
     height: 38px;
-    background: rgba(138, 43, 226, 0.1);
-    border: 1px solid rgba(138, 43, 226, 0.3);
+    background: rgba(255, 117, 160, 0.08);
+    border: 1px solid rgba(255, 117, 160, 0.2);
     border-radius: 10px;
     display: flex;
     align-items: center;
@@ -111,30 +148,30 @@ h1, h2, h3, h4, h5, h6, .brand-text {
 }
 
 .navbar-nav .nav-link:hover, .navbar-nav .nav-link.active {
-    color: var(--text-main) !important;
-    background: rgba(255, 255, 255, 0.05);
+    color: var(--color-primary) !important;
+    background: rgba(255, 117, 160, 0.06);
 }
 
 /* --- Buttons & Inputs --- */
 .btn-accent {
     background: var(--color-accent-gradient);
-    color: #fff;
+    color: #fff !important;
     border: none;
-    box-shadow: var(--shadow-purple-glow);
+    box-shadow: var(--shadow-pink-glow);
     transition: var(--transition-smooth);
 }
 
 .btn-accent:hover {
-    color: #fff;
+    color: #fff !important;
     box-shadow: 
-        var(--shadow-purple-glow),
-        0 0 20px rgba(0, 242, 254, 0.4);
+        var(--shadow-pink-glow),
+        0 8px 25px rgba(255, 117, 160, 0.3);
     transform: translateY(-1px);
 }
 
 .btn-outline-accent {
     background: transparent;
-    border: 1px solid var(--color-secondary);
+    border: 1.5px solid var(--color-secondary);
     color: var(--color-secondary);
     transition: var(--transition-smooth);
 }
@@ -142,13 +179,13 @@ h1, h2, h3, h4, h5, h6, .brand-text {
 .btn-outline-accent:hover {
     background: var(--color-accent-gradient);
     border-color: transparent;
-    color: #fff;
+    color: #fff !important;
     box-shadow: var(--shadow-accent-glow);
 }
 
 .form-control-premium {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid var(--border-glass);
+    background: #ffffff;
+    border: 1px solid rgba(84, 160, 255, 0.2);
     border-radius: 10px;
     color: var(--text-main) !important;
     padding: 0.75rem 1rem;
@@ -156,14 +193,14 @@ h1, h2, h3, h4, h5, h6, .brand-text {
 }
 
 .form-control-premium:focus {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: var(--color-secondary);
-    box-shadow: var(--shadow-accent-glow);
+    background: #ffffff;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(255, 117, 160, 0.15);
     outline: none;
 }
 
 .form-control-premium::placeholder {
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(116, 125, 140, 0.5);
 }
 
 /* --- Utility Classes --- */
@@ -177,36 +214,35 @@ h1, h2, h3, h4, h5, h6, .brand-text {
     color: var(--text-accent);
 }
 
-.text-light-muted {
-    color: var(--text-muted);
-}
-
 .border-accent-glow {
-    border: 1px solid var(--color-secondary) !important;
-    box-shadow: var(--shadow-accent-glow) !important;
+    border: 1px solid rgba(255, 117, 160, 0.25) !important;
+    box-shadow: 0 8px 25px rgba(255, 117, 160, 0.08) !important;
 }
 
 .border-glass-subtle {
-    border: 1px solid var(--border-glass) !important;
+    border: 1px solid rgba(0, 0, 0, 0.04) !important;
 }
 
 /* --- Dropdown Premium Stylings --- */
 .bg-dropdown {
-    background: rgba(15, 17, 28, 0.95) !important;
-    backdrop-filter: blur(10px);
+    background: #ffffff !important;
+    backdrop-filter: none;
     border-radius: 12px !important;
     padding: 0.5rem !important;
+    box-shadow: 0 10px 40px rgba(116, 125, 140, 0.12) !important;
+    border: 1px solid rgba(0, 0, 0, 0.03) !important;
 }
 
 .dropdown-item {
     border-radius: 6px;
     transition: var(--transition-smooth);
     padding: 0.6rem 1rem;
+    color: var(--text-main) !important;
 }
 
 .dropdown-item:hover {
-    background: rgba(255, 255, 255, 0.08) !important;
-    color: var(--color-secondary) !important;
+    background: rgba(255, 117, 160, 0.06) !important;
+    color: var(--color-primary) !important;
 }
 
 /* --- Favorite Star Toggle Animation --- */
@@ -229,8 +265,8 @@ h1, h2, h3, h4, h5, h6, .brand-text {
 
 /* --- Route Card Design --- */
 .route-badge {
-    background: rgba(255, 255, 255, 0.06);
-    border: 1px solid var(--border-glass);
+    background: rgba(84, 160, 255, 0.06);
+    border: 1px solid rgba(84, 160, 255, 0.15);
     border-radius: 8px;
     padding: 0.4rem 0.8rem;
     font-size: 0.85rem;
@@ -240,16 +276,32 @@ h1, h2, h3, h4, h5, h6, .brand-text {
 }
 
 .route-badge-purple {
-    background: rgba(138, 43, 226, 0.1);
-    border-color: rgba(138, 43, 226, 0.3);
+    background: rgba(255, 117, 160, 0.08);
+    border-color: rgba(255, 117, 160, 0.2);
 }
 
 .route-badge-teal {
-    background: rgba(0, 242, 254, 0.1);
-    border-color: rgba(0, 242, 254, 0.3);
+    background: rgba(84, 160, 255, 0.08);
+    border-color: rgba(84, 160, 255, 0.2);
 }
 
 /* --- Layout Heights --- */
 .min-vh-80 {
     min-height: 80vh;
+}
+
+/* --- Interactive Effects --- */
+.hover-scale-up {
+    transition: var(--transition-smooth);
+}
+.hover-scale-up:hover {
+    transform: translateY(-3px) scale(1.015);
+    box-shadow: 0 12px 40px 0 rgba(255, 117, 160, 0.12) !important;
+    border-color: rgba(255, 117, 160, 0.35) !important;
+}
+
+/* Footer style override */
+.footer {
+    background-color: #ffffff !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.03) !important;
 }

@@ -2,801 +2,1444 @@
 
 {% block title %}一站式交通查詢 — 台中大眾運輸整合 APP{% endblock %}
 
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<style>
+/* ============================
+   一站式查詢頁面專屬樣式
+   ============================ */
+
+/* 頁面外層容器（脫離 base.html 的 container 寬度限制） */
+#search-page {
+    margin: -1.5rem;
+    font-family: var(--font-body);
+}
+
+/* ---------- HERO 查詢區塊 ---------- */
+.search-hero {
+    background: linear-gradient(135deg, #fff0f5 0%, #f0f7ff 100%);
+    padding: 3rem 2rem 2.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.search-hero-inner {
+    width: 100%;
+    max-width: 860px;
+    text-align: center;
+}
+.hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,117,160,0.1);
+    color: var(--color-primary);
+    border: 1px solid rgba(255,117,160,0.25);
+    border-radius: 50px;
+    padding: 6px 18px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    letter-spacing: 0.04em;
+}
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--color-primary);
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.5; }
+}
+.hero-title {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 0.6rem;
+    line-height: 1.2;
+}
+.gradient-text {
+    background: linear-gradient(135deg, #ff75a0, #54a0ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.hero-subtitle {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+    margin-bottom: 2rem;
+}
+
+/* ---------- 查詢卡片 ---------- */
+.query-card {
+    background: #ffffff;
+    border-radius: 24px;
+    box-shadow: 0 12px 50px rgba(84,160,255,0.12), 0 4px 16px rgba(255,117,160,0.08);
+    padding: 2rem;
+    text-align: left;
+}
+.query-stations-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.2rem;
+}
+.query-station-box {
+    flex: 1;
+}
+.query-station-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.query-station-select {
+    width: 100%;
+    background: #f7fafc;
+    border: 1.5px solid rgba(84,160,255,0.2);
+    border-radius: 12px;
+    padding: 0.7rem 2.5rem 0.7rem 1rem;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-main);
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2354a0ff' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+}
+.query-station-select:focus {
+    outline: none;
+    border-color: var(--color-secondary);
+    box-shadow: 0 0 0 4px rgba(84,160,255,0.12);
+}
+.swap-stations-btn {
+    background: linear-gradient(135deg, #ff75a0, #54a0ff);
+    border: none;
+    border-radius: 50%;
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: transform 0.3s, box-shadow 0.2s;
+    box-shadow: 0 4px 15px rgba(255,117,160,0.3);
+    margin-top: 22px;
+}
+.swap-stations-btn:hover { transform: rotate(180deg); box-shadow: 0 6px 20px rgba(84,160,255,0.4); }
+.swap-stations-btn.spinning { transform: rotate(360deg); }
+
+.query-options-row {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    margin-bottom: 1.4rem;
+}
+.query-option-group {
+    flex: 1;
+    min-width: 180px;
+}
+.query-option-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.query-option-select {
+    width: 100%;
+    background: #f7fafc;
+    border: 1.5px solid rgba(84,160,255,0.2);
+    border-radius: 10px;
+    padding: 0.6rem 2.5rem 0.6rem 0.9rem;
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    color: var(--text-main);
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2354a0ff' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    transition: border-color 0.2s;
+}
+.query-option-select:focus { outline: none; border-color: var(--color-secondary); }
+
+#scheduled-time-input {
+    width: 100%;
+    background: #f7fafc;
+    border: 1.5px solid rgba(84,160,255,0.2);
+    border-radius: 10px;
+    padding: 0.6rem 0.9rem;
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    color: var(--text-main);
+    margin-top: 8px;
+    display: none;
+    transition: border-color 0.2s;
+}
+#scheduled-time-input:focus { outline: none; border-color: var(--color-secondary); }
+
+.btn-search-main {
+    width: 100%;
+    background: linear-gradient(135deg, #ff75a0 0%, #54a0ff 100%);
+    border: none;
+    border-radius: 14px;
+    padding: 1rem 2rem;
+    color: white;
+    font-family: var(--font-body);
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 6px 24px rgba(255,117,160,0.25);
+    position: relative;
+    overflow: hidden;
+}
+.btn-search-main:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(84,160,255,0.35);
+}
+.btn-search-main:disabled { opacity: 0.7; cursor: not-allowed; }
+
+/* ---------- 查詢結果區 ---------- */
+.results-wrapper {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+.results-back-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+.results-route-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.btn-back {
+    background: #f7fafc;
+    border: 1.5px solid rgba(84,160,255,0.2);
+    border-radius: 10px;
+    padding: 0.5rem 1.2rem;
+    font-family: var(--font-body);
+    font-size: 0.88rem;
+    color: var(--color-secondary);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.btn-back:hover { background: #fff0f5; border-color: var(--color-primary); color: var(--color-primary); }
+
+/* 行程摘要條 */
+.trip-banner {
+    background: linear-gradient(135deg, #fff0f5, #f0f7ff);
+    border-radius: 16px;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+.trip-endpoint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--text-main);
+}
+.trip-banner-arrow {
+    color: var(--color-secondary);
+    font-size: 1.1rem;
+    flex: 1;
+    text-align: center;
+}
+
+/* 結果主佈局 */
+.results-main-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+@media (max-width: 900px) {
+    .results-main-layout { grid-template-columns: 1fr; }
+}
+
+/* 路線卡片 */
+.plan-card {
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 6px 24px rgba(84,160,255,0.08);
+    border: 1.5px solid transparent;
+    margin-bottom: 1rem;
+    overflow: hidden;
+    transition: all 0.25s;
+    cursor: pointer;
+}
+.plan-card:hover { transform: translateY(-3px); box-shadow: 0 12px 36px rgba(84,160,255,0.15); }
+.plan-card.selected { border-color: var(--color-secondary); box-shadow: 0 8px 32px rgba(84,160,255,0.2); }
+.plan-card.recommended { border-color: var(--color-primary); }
+
+.plan-card-header {
+    padding: 1rem 1.2rem 0.8rem;
+    border-bottom: 1px solid #f0f4f8;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.plan-badge-rec {
+    background: linear-gradient(135deg, #ff75a0, #ff9fc2);
+    color: white;
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.plan-badge-alt {
+    background: #f0f7ff;
+    color: var(--color-secondary);
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+.plan-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+.plan-stats-row {
+    display: flex;
+    gap: 1.5rem;
+    padding: 0.8rem 1.2rem;
+    background: #fbfdff;
+    border-bottom: 1px solid #f0f4f8;
+}
+.plan-stat {
+    text-align: center;
+}
+.plan-stat-value {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: var(--text-main);
+    display: block;
+    line-height: 1;
+}
+.plan-stat-label {
+    font-size: 0.73rem;
+    color: var(--text-muted);
+    margin-top: 3px;
+}
+.plan-arrival {
+    font-size: 0.85rem;
+    color: var(--color-secondary);
+    font-weight: 600;
+    margin-left: auto;
+    text-align: right;
+}
+
+/* 步驟時間軸 */
+.plan-timeline {
+    padding: 1rem 1.2rem;
+}
+.timeline-step {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 0.8rem;
+    position: relative;
+}
+.timeline-step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 17px;
+    top: 36px;
+    width: 2px;
+    height: calc(100% - 8px);
+    background: linear-gradient(to bottom, #e2ecff, transparent);
+}
+.timeline-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    color: white;
+    flex-shrink: 0;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+.timeline-icon.walk { background: linear-gradient(135deg, #a8b8d0, #8aa0bf); }
+.timeline-icon.bus { background: linear-gradient(135deg, #ff9f43, #ffc371); }
+.timeline-icon.mrt { background: linear-gradient(135deg, #00b894, #00cec9); }
+.timeline-icon.train { background: linear-gradient(135deg, #0984e3, #74b9ff); }
+.timeline-icon.hsr { background: linear-gradient(135deg, #6c5ce7, #a29bfe); }
+.timeline-icon.youbike { background: linear-gradient(135deg, #00b894, #55efc4); }
+.timeline-icon.arrive { background: linear-gradient(135deg, #ff75a0, #ff9fc2); }
+
+.timeline-body {
+    flex: 1;
+    min-width: 0;
+}
+.timeline-step-time {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--color-secondary);
+    letter-spacing: 0.05em;
+}
+.timeline-step-desc {
+    font-size: 0.88rem;
+    color: var(--text-main);
+    font-weight: 500;
+    line-height: 1.4;
+    margin: 2px 0;
+}
+.timeline-step-meta {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+.timeline-step-fare {
+    font-size: 0.75rem;
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
+/* 地圖區塊 */
+.map-panel {
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 6px 24px rgba(84,160,255,0.08);
+    overflow: hidden;
+    position: sticky;
+    top: 80px;
+}
+.map-panel-header {
+    padding: 0.9rem 1.2rem;
+    border-bottom: 1px solid #f0f4f8;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+#search-map {
+    height: 460px;
+    width: 100%;
+}
+.map-legend {
+    padding: 0.7rem 1.2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    background: #fbfdff;
+    border-top: 1px solid #f0f4f8;
+}
+.map-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+/* ---------- 班次快查區塊 ---------- */
+.timetable-section {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+.section-title-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1.2rem;
+}
+.section-title-bar h2 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-main);
+}
+.section-badge {
+    background: linear-gradient(135deg, #ff75a0, #54a0ff);
+    color: white;
+    border-radius: 20px;
+    padding: 3px 12px;
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.tt-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+.tt-tab-btn {
+    background: #f0f7ff;
+    border: 1.5px solid rgba(84,160,255,0.2);
+    border-radius: 8px;
+    padding: 0.45rem 1rem;
+    font-family: var(--font-body);
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.tt-tab-btn.active {
+    background: linear-gradient(135deg, #ff75a0, #54a0ff);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 4px 12px rgba(255,117,160,0.25);
+}
+.tt-tab-btn:hover:not(.active) { background: #fff0f5; border-color: var(--color-primary); color: var(--color-primary); }
+
+.tt-content-panel { display: none; }
+.tt-content-panel.active { display: block; }
+
+.tt-panel-card {
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 4px 16px rgba(84,160,255,0.07);
+    padding: 1.2rem;
+}
+.tt-search-row {
+    display: flex;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+}
+.tt-input {
+    flex: 1;
+    background: #f7fafc;
+    border: 1.5px solid rgba(84,160,255,0.2);
+    border-radius: 10px;
+    padding: 0.6rem 1rem;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--text-main);
+    transition: border-color 0.2s;
+}
+.tt-input:focus { outline: none; border-color: var(--color-secondary); }
+.tt-search-btn {
+    background: linear-gradient(135deg, #ff75a0, #54a0ff);
+    border: none;
+    border-radius: 10px;
+    width: 42px;
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+}
+.tt-search-btn:hover { transform: scale(1.05); }
+
+.arrival-list { }
+.arrival-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #f0f4f8;
+}
+.arrival-item:last-child { border-bottom: none; }
+.route-badge {
+    background: #fff0f5;
+    color: var(--color-primary);
+    border-radius: 6px;
+    padding: 3px 10px;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+.arrival-time {
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+.time-soon { color: #e74c3c; }
+.time-normal { color: var(--color-secondary); }
+.time-later { color: var(--text-muted); }
+
+.mrt-stations-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+.mrt-stn-btn {
+    background: #f0f7ff;
+    border: 1.5px solid rgba(84,160,255,0.2);
+    border-radius: 8px;
+    padding: 0.35rem 0.8rem;
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.mrt-stn-btn:hover, .mrt-stn-btn.active { background: linear-gradient(135deg, #00b894, #00cec9); color: white; border-color: transparent; }
+.mrt-stn-num {
+    background: rgba(0,0,0,0.1);
+    border-radius: 4px;
+    padding: 0 5px;
+    font-size: 0.7rem;
+}
+
+.tt-placeholder {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+/* ---------- 錯誤 Toast ---------- */
+.error-toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #fff0f5;
+    border: 1.5px solid var(--color-primary);
+    color: #c0392b;
+    border-radius: 12px;
+    padding: 0.75rem 1.5rem;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 600;
+    z-index: 9999;
+    box-shadow: 0 8px 30px rgba(255,117,160,0.2);
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+}
+.error-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+{% endblock %}
+
 {% block content %}
 <div id="search-page">
 
-    <!-- ===================== HERO 查詢區塊 ===================== -->
-    <section class="search-hero">
-        <div class="search-hero-bg"></div>
-        <div class="search-hero-content">
-            <div class="search-hero-badge">
+    <!-- ==================== HERO 查詢區 ==================== -->
+    <section class="search-hero" id="search-hero-section">
+        <div class="search-hero-inner">
+            <div class="hero-badge">
                 <span class="pulse-dot"></span>
-                <span>F-01 一站式查詢平台</span>
+                F-01 一站式查詢平台
             </div>
-            <h1 class="search-hero-title">
-                整合台中<br>
-                <span class="gradient-text">大眾運輸查詢</span>
+            <h1 class="hero-title">
+                台中交通，<br>
+                <span class="gradient-text">一查到底</span>
             </h1>
-            <p class="search-hero-subtitle">公車・捷運・台鐵・高鐵・YouBike 一次搞定，輸入起點與終點即可獲得最佳路線方案</p>
+            <p class="hero-subtitle">選擇出發站與目的地，立即獲得最佳路線、抵達時間與逐段導覽</p>
 
-            <!-- 查詢主表單 -->
-            <div class="query-card" id="query-form-card">
-                <!-- 起訖點輸入 -->
-                <div class="query-inputs">
-                    <div class="query-input-group" id="start-group">
-                        <label class="query-label">
-                            <i class="fa-solid fa-circle-play text-success"></i>
+            <!-- 查詢主卡片 -->
+            <div class="query-card" id="query-card">
+                <!-- 起訖站選擇 -->
+                <div class="query-stations-row">
+                    <div class="query-station-box">
+                        <div class="query-station-label">
+                            <i class="fa-solid fa-circle-play" style="color:#00b894;"></i>
                             出發地點
-                        </label>
-                        <div class="query-input-wrapper">
-                            <input type="text" id="search-start-input" class="query-input"
-                                placeholder="輸入出發站點名稱..."
-                                oninput="handleSearchAutocomplete('start')"
-                                onfocus="handleSearchAutocomplete('start')"
-                                autocomplete="off">
-                            <i class="fa-solid fa-magnifying-glass query-input-icon"></i>
                         </div>
-                        <div id="start-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
-                        <input type="hidden" id="search-start-id">
+                        <select id="sel-start" class="query-station-select">
+                            <option value="" disabled selected>— 請選擇出發站點 —</option>
+                        </select>
                     </div>
 
-                    <button class="swap-btn" id="swap-btn" onclick="swapStations()" title="交換起訖點">
+                    <button class="swap-stations-btn" id="swap-btn" onclick="swapStations()" title="交換起訖點">
                         <i class="fa-solid fa-arrow-right-arrow-left"></i>
                     </button>
 
-                    <div class="query-input-group" id="end-group">
-                        <label class="query-label">
-                            <i class="fa-solid fa-circle-stop text-danger"></i>
+                    <div class="query-station-box">
+                        <div class="query-station-label">
+                            <i class="fa-solid fa-circle-stop" style="color:#ff75a0;"></i>
                             目的地點
-                        </label>
-                        <div class="query-input-wrapper">
-                            <input type="text" id="search-end-input" class="query-input"
-                                placeholder="輸入目的站點名稱..."
-                                oninput="handleSearchAutocomplete('end')"
-                                onfocus="handleSearchAutocomplete('end')"
-                                autocomplete="off">
-                            <i class="fa-solid fa-magnifying-glass query-input-icon"></i>
                         </div>
-                        <div id="end-autocomplete-list" class="autocomplete-dropdown" style="display:none;"></div>
-                        <input type="hidden" id="search-end-id">
+                        <select id="sel-end" class="query-station-select">
+                            <option value="" disabled selected>— 請選擇目的站點 —</option>
+                        </select>
                     </div>
                 </div>
 
-                <!-- 篩選選項列 -->
-                <div class="query-filters">
-                    <div class="filter-group">
-                        <label class="filter-label"><i class="fa-solid fa-train me-1"></i>交通工具</label>
-                        <div class="transport-chips" id="transport-chips">
-                            <button class="chip active" data-type="all" onclick="toggleChip(this)">全部</button>
-                            <button class="chip" data-type="bus" onclick="toggleChip(this)">🚌 公車</button>
-                            <button class="chip" data-type="mrt" onclick="toggleChip(this)">🚇 捷運</button>
-                            <button class="chip" data-type="train" onclick="toggleChip(this)">🚆 台鐵</button>
-                            <button class="chip" data-type="hsr" onclick="toggleChip(this)">🚄 高鐵</button>
-                            <button class="chip" data-type="youbike" onclick="toggleChip(this)">🚲 YouBike</button>
+                <!-- 篩選選項 -->
+                <div class="query-options-row">
+                    <div class="query-option-group">
+                        <div class="query-option-label">
+                            <i class="fa-regular fa-clock" style="color: var(--color-secondary);"></i>
+                            出發時間
                         </div>
+                        <select id="sel-time-mode" class="query-option-select" onchange="toggleTimeInput()">
+                            <option value="now">🟢 立即出發</option>
+                            <option value="scheduled">🕐 指定時間</option>
+                        </select>
+                        <input type="datetime-local" id="scheduled-time-input" placeholder="指定出發時間">
                     </div>
-                    <div class="filter-group">
-                        <label class="filter-label"><i class="fa-regular fa-clock me-1"></i>出發時間</label>
-                        <div class="time-select-wrapper">
-                            <select id="depart-time-mode" class="form-select-custom" onchange="toggleTimeInput()">
-                                <option value="now">立即出發</option>
-                                <option value="scheduled">指定時間</option>
-                            </select>
-                            <input type="datetime-local" id="scheduled-time" class="form-select-custom" style="display:none;">
+                    <div class="query-option-group">
+                        <div class="query-option-label">
+                            <i class="fa-solid fa-route" style="color: var(--color-primary);"></i>
+                            路線偏好
                         </div>
+                        <select id="sel-pref" class="query-option-select">
+                            <option value="all">✨ 最佳推薦</option>
+                            <option value="fastest">⚡ 最快速</option>
+                            <option value="cheapest">💰 最省錢</option>
+                        </select>
                     </div>
                 </div>
 
                 <!-- 查詢按鈕 -->
-                <button class="btn-search-main" id="btn-search-main" onclick="executeSearch()">
+                <button class="btn-search-main" id="btn-search" onclick="executeSearch()">
                     <i class="fa-solid fa-location-arrow me-2"></i>
-                    查詢最佳路線
-                    <div class="btn-shimmer"></div>
+                    立即查詢路線
                 </button>
             </div>
         </div>
     </section>
 
-    <!-- ===================== 查詢結果區 ===================== -->
-    <section class="search-results-section" id="results-section" style="display:none;">
-        <div class="results-container">
-
-            <!-- 結果標題列 -->
-            <div class="results-header">
-                <div>
-                    <h2 class="results-title">
-                        <i class="fa-solid fa-route text-info me-2"></i>
-                        路線方案
-                    </h2>
-                    <p class="results-subtitle" id="results-subtitle-text">共找到 3 個替代方案</p>
+    <!-- ==================== 查詢結果區 ==================== -->
+    <div id="results-section" style="display:none;">
+        <div class="results-wrapper">
+            <!-- 頂部返回與標題 -->
+            <div class="results-back-row">
+                <div class="results-route-title">
+                    <i class="fa-solid fa-route" style="color: var(--color-secondary);"></i>
+                    <span id="results-title-text">路線方案</span>
                 </div>
-                <button class="btn-back-search" onclick="backToSearch()">
-                    <i class="fa-solid fa-arrow-left me-1"></i> 重新查詢
+                <button class="btn-back" onclick="backToSearch()">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    重新查詢
                 </button>
             </div>
 
             <!-- 行程摘要橫幅 -->
-            <div class="trip-summary-bar" id="trip-summary-bar">
-                <div class="trip-point">
-                    <i class="fa-solid fa-circle-play text-success"></i>
-                    <span id="summary-start-name">--</span>
+            <div class="trip-banner">
+                <div class="trip-endpoint">
+                    <i class="fa-solid fa-circle-play" style="color:#00b894;"></i>
+                    <span id="banner-start">--</span>
                 </div>
-                <div class="trip-arrow">
-                    <div class="trip-arrow-line"></div>
+                <div class="trip-banner-arrow">
+                    <i class="fa-solid fa-chevron-right me-1"></i>
+                    <i class="fa-solid fa-chevron-right me-1"></i>
                     <i class="fa-solid fa-chevron-right"></i>
                 </div>
-                <div class="trip-point">
-                    <i class="fa-solid fa-circle-stop text-danger"></i>
-                    <span id="summary-end-name">--</span>
+                <div class="trip-endpoint">
+                    <i class="fa-solid fa-circle-stop" style="color:#ff75a0;"></i>
+                    <span id="banner-end">--</span>
                 </div>
             </div>
 
-            <!-- 路線方案卡片列表 -->
-            <div class="plan-cards-grid" id="plan-cards-grid">
-                <!-- 動態注入 -->
-            </div>
-        </div>
-    </section>
-
-    <!-- ===================== 資訊面板區 ===================== -->
-    <section class="info-panels-section">
-        <div class="info-panels-container">
-
-            <!-- 票價試算面板 -->
-            <div class="info-panel" id="fare-panel">
-                <div class="info-panel-header">
-                    <h3><i class="fa-solid fa-hand-holding-dollar text-success me-2"></i>票價試算</h3>
-                    <span class="info-panel-badge">快速查詢</span>
-                </div>
-                <div class="fare-calc-grid">
-                    <div class="fare-item">
-                        <div class="fare-item-icon bus-icon">🚌</div>
-                        <div class="fare-item-info">
-                            <div class="fare-item-name">台中市公車</div>
-                            <div class="fare-item-rule">雙十優惠 · 10km 內免費</div>
-                        </div>
-                        <div class="fare-item-calc">
-                            <input type="number" id="bus-distance-input" class="fare-input" placeholder="公里數" min="0" step="0.1" oninput="calcBusFare()">
-                            <div class="fare-result" id="bus-fare-result">— 元</div>
-                        </div>
-                    </div>
-                    <div class="fare-item">
-                        <div class="fare-item-icon mrt-icon">🚇</div>
-                        <div class="fare-item-info">
-                            <div class="fare-item-name">台中捷運綠線</div>
-                            <div class="fare-item-rule">起站 20 元 · 每站 +5 元</div>
-                        </div>
-                        <div class="fare-item-calc">
-                            <input type="number" id="mrt-stations-input" class="fare-input" placeholder="站數" min="1" step="1" oninput="calcMrtFare()">
-                            <div class="fare-result" id="mrt-fare-result">— 元</div>
-                        </div>
-                    </div>
-                    <div class="fare-item">
-                        <div class="fare-item-icon youbike-icon">🚲</div>
-                        <div class="fare-item-info">
-                            <div class="fare-item-name">YouBike 2.0</div>
-                            <div class="fare-item-rule">前 30 分 10 元 · 每半小時 10 元</div>
-                        </div>
-                        <div class="fare-item-calc">
-                            <input type="number" id="youbike-mins-input" class="fare-input" placeholder="分鐘數" min="1" step="5" oninput="calcYoubikeFare()">
-                            <div class="fare-result" id="youbike-fare-result">— 元</div>
-                        </div>
-                    </div>
-                    <div class="fare-item transfer-discount-item">
-                        <div class="fare-item-icon transfer-icon">🔄</div>
-                        <div class="fare-item-info">
-                            <div class="fare-item-name">捷運 ↔ 公車轉乘優惠</div>
-                            <div class="fare-item-rule">1 小時內轉乘 · 折抵 20 元</div>
-                        </div>
-                        <div class="fare-item-calc">
-                            <div class="fare-result text-success">折 20 元</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 班次快查面板 -->
-            <div class="info-panel" id="timetable-panel">
-                <div class="info-panel-header">
-                    <h3><i class="fa-solid fa-clock-rotate-left text-info me-2"></i>班次快查</h3>
-                    <span class="info-panel-badge">即時查詢</span>
+            <!-- 主佈局：左側路線卡片 + 右側地圖 -->
+            <div class="results-main-layout">
+                <!-- 左側：路線方案卡片 -->
+                <div id="plan-cards-col">
+                    <!-- 動態注入 -->
                 </div>
 
-                <div class="timetable-tabs">
-                    <button class="tt-tab active" id="tt-tab-bus" onclick="switchTimetableTab('bus')">
-                        <i class="fa-solid fa-bus me-1"></i> 公車班次
-                    </button>
-                    <button class="tt-tab" id="tt-tab-mrt" onclick="switchTimetableTab('mrt')">
-                        <i class="fa-solid fa-subway me-1"></i> 捷運時刻
-                    </button>
-                    <button class="tt-tab" id="tt-tab-train" onclick="switchTimetableTab('train')">
-                        <i class="fa-solid fa-train me-1"></i> 台鐵 / 高鐵
-                    </button>
-                </div>
-
-                <!-- 公車班次查詢 -->
-                <div class="tt-content active" id="tt-content-bus">
-                    <div class="tt-search-row">
-                        <input type="text" id="bus-stop-search" class="query-input" placeholder="輸入公車站名 (e.g. 市政府)..."
-                            oninput="searchBusStop()">
-                        <button class="tt-search-btn" onclick="searchBusStop()">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                        </button>
+                <!-- 右側：地圖 -->
+                <div class="map-panel">
+                    <div class="map-panel-header">
+                        <i class="fa-solid fa-map-location-dot" style="color: var(--color-secondary);"></i>
+                        路線地圖
+                        <span class="ms-auto text-muted" style="font-weight:400; font-size:0.8rem;" id="map-status-text">選擇路線方案後更新</span>
                     </div>
-                    <div id="bus-timetable-results" class="tt-results">
-                        <div class="tt-placeholder">
-                            <i class="fa-solid fa-bus text-secondary" style="font-size:2rem; opacity:0.3;"></i>
-                            <p>輸入站名查詢公車到站時間</p>
-                        </div>
+                    <div id="search-map"></div>
+                    <div class="map-legend">
+                        <div class="map-legend-item"><span class="legend-dot" style="background:#00b894;"></span>捷運</div>
+                        <div class="map-legend-item"><span class="legend-dot" style="background:#ff9f43;"></span>公車</div>
+                        <div class="map-legend-item"><span class="legend-dot" style="background:#0984e3;"></span>台鐵</div>
+                        <div class="map-legend-item"><span class="legend-dot" style="background:#6c5ce7;"></span>高鐵</div>
+                        <div class="map-legend-item"><span class="legend-dot" style="background:#a8b8d0;"></span>步行</div>
                     </div>
-                </div>
-
-                <!-- 捷運時刻查詢 -->
-                <div class="tt-content" id="tt-content-mrt">
-                    <div class="mrt-station-grid">
-                        <p class="text-muted small mb-3">台中捷運綠線 — 點選站點查看即時發車時刻</p>
-                        <div class="mrt-line-display" id="mrt-line-display">
-                            <!-- 動態注入台中捷運站點列表 -->
-                        </div>
-                    </div>
-                    <div id="mrt-timetable-results" class="tt-results mt-3" style="display:none;"></div>
-                </div>
-
-                <!-- 台鐵/高鐵資訊 -->
-                <div class="tt-content" id="tt-content-train">
-                    <div class="train-info-cards">
-                        <div class="train-info-card">
-                            <div class="train-info-header">
-                                <span class="train-badge tra-badge">🚆 台鐵</span>
-                                <span class="train-station">台中站</span>
-                            </div>
-                            <div class="train-info-body">
-                                <div class="train-schedule-row">
-                                    <span class="train-name">自強號</span>
-                                    <span class="train-dest">往台北</span>
-                                    <span class="train-time time-normal">每小時班次</span>
-                                </div>
-                                <div class="train-schedule-row">
-                                    <span class="train-name">區間車</span>
-                                    <span class="train-dest">往彰化/豐原</span>
-                                    <span class="train-time time-normal">每 15 分鐘</span>
-                                </div>
-                                <div class="train-info-note">
-                                    <i class="fa-solid fa-circle-info me-1 text-info"></i>
-                                    詳細時刻表請至<a href="https://www.railway.gov.tw/" target="_blank" class="link-info">台鐵官網</a>查詢
-                                </div>
-                            </div>
-                        </div>
-                        <div class="train-info-card">
-                            <div class="train-info-header">
-                                <span class="train-badge hsr-badge">🚄 高鐵</span>
-                                <span class="train-station">高鐵台中站 (烏日)</span>
-                            </div>
-                            <div class="train-info-body">
-                                <div class="train-schedule-row">
-                                    <span class="train-name">標準車廂</span>
-                                    <span class="train-dest">往台北</span>
-                                    <span class="train-time time-normal">約 50 分鐘</span>
-                                </div>
-                                <div class="train-schedule-row">
-                                    <span class="train-name">標準車廂</span>
-                                    <span class="train-dest">往高雄</span>
-                                    <span class="train-time time-normal">約 50 分鐘</span>
-                                </div>
-                                <div class="train-info-note">
-                                    <i class="fa-solid fa-circle-info me-1 text-info"></i>
-                                    詳細時刻表請至<a href="https://www.thsrc.com.tw/" target="_blank" class="link-info">高鐵官網</a>查詢
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="transfer-tip">
-                        <i class="fa-solid fa-lightbulb text-warning me-2"></i>
-                        <strong>前往高鐵台中站：</strong>搭乘台中捷運綠線至「高鐵台中站」直達，約 34 分鐘，票價 50 元。
-                    </div>
-                </div>
-            </div>
-
-        </div>
-    </section>
-
-    <!-- ===================== 運具介紹橫幅 ===================== -->
-    <section class="transport-overview-section">
-        <div class="transport-overview-container">
-            <h2 class="section-title text-center">台中大眾運輸總覽</h2>
-            <p class="section-subtitle text-center">整合四大運具，輕鬆穿梭台中各地</p>
-            <div class="transport-cards-row">
-                <div class="transport-overview-card">
-                    <div class="toc-icon bus-glow">🚌</div>
-                    <h4>台中市公車</h4>
-                    <p>雙十優惠，10公里內免費乘車，超過部分每公里 2.5 元，最高 10 元</p>
-                    <div class="toc-tag">300+ 路線</div>
-                </div>
-                <div class="transport-overview-card">
-                    <div class="toc-icon mrt-glow">🚇</div>
-                    <h4>台中捷運綠線</h4>
-                    <p>北屯總站 ↔ 高鐵台中站，18 站，尖峰 6 分鐘一班，票價 20~50 元</p>
-                    <div class="toc-tag">18 站全線</div>
-                </div>
-                <div class="transport-overview-card">
-                    <div class="toc-icon train-glow">🚆</div>
-                    <h4>台鐵</h4>
-                    <p>台中站為重要幹線，自強號、莒光號、區間車班次密集，連接南北</p>
-                    <div class="toc-tag">縱貫線幹線</div>
-                </div>
-                <div class="transport-overview-card">
-                    <div class="toc-icon hsr-glow">🚄</div>
-                    <h4>高速鐵路</h4>
-                    <p>高鐵台中站（烏日），直達台北約 50 分鐘，與捷運直接連通轉乘</p>
-                    <div class="toc-tag">高鐵台中站</div>
-                </div>
-                <div class="transport-overview-card">
-                    <div class="toc-icon youbike-glow">🚲</div>
-                    <h4>YouBike 2.0</h4>
-                    <p>遍布台中市各大捷運站、公車站附近，前 30 分鐘 10 元，低碳環保</p>
-                    <div class="toc-tag">站點超過 300</div>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
+
+    <!-- ==================== 班次快查區塊 ==================== -->
+    <div class="timetable-section">
+        <div class="section-title-bar">
+            <h2><i class="fa-solid fa-clock-rotate-left me-2" style="color: var(--color-primary);"></i>班次快查</h2>
+            <span class="section-badge">即時查詢</span>
+        </div>
+
+        <!-- 分頁標籤 -->
+        <div class="tt-tabs">
+            <button class="tt-tab-btn active" id="tt-tab-bus" onclick="switchTTTab('bus')">
+                <i class="fa-solid fa-bus me-1"></i> 公車班次
+            </button>
+            <button class="tt-tab-btn" id="tt-tab-mrt" onclick="switchTTTab('mrt')">
+                <i class="fa-solid fa-subway me-1"></i> 捷運時刻
+            </button>
+            <button class="tt-tab-btn" id="tt-tab-train" onclick="switchTTTab('train')">
+                <i class="fa-solid fa-train me-1"></i> 台鐵 / 高鐵
+            </button>
+        </div>
+
+        <!-- 公車班次查詢 -->
+        <div class="tt-content-panel active" id="tt-panel-bus">
+            <div class="tt-panel-card">
+                <div class="tt-search-row">
+                    <input type="text" id="bus-stop-input" class="tt-input" placeholder="輸入站名 (例如：市政府、台中車站)..."
+                        oninput="debouncedBusSearch()">
+                    <button class="tt-search-btn" onclick="searchBusArrival()">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </button>
+                </div>
+                <div id="bus-arrival-results">
+                    <div class="tt-placeholder">
+                        <i class="fa-solid fa-bus" style="font-size:2rem; opacity:0.2; color: var(--color-primary);"></i>
+                        <p class="mt-2">輸入站名查詢即時到站時間</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 捷運時刻查詢 -->
+        <div class="tt-content-panel" id="tt-panel-mrt">
+            <div class="tt-panel-card">
+                <p style="font-size:0.85rem; color: var(--text-muted); margin-bottom:0.8rem;">台中捷運綠線 — 點選站點查看即時發車時刻</p>
+                <div class="mrt-stations-grid" id="mrt-stations-grid">
+                    <!-- 動態注入 -->
+                </div>
+                <div id="mrt-arrival-results">
+                    <div class="tt-placeholder">
+                        <i class="fa-solid fa-subway" style="font-size:2rem; opacity:0.2; color:#00b894;"></i>
+                        <p class="mt-2">點選捷運站查詢發車時刻</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 台鐵/高鐵資訊 -->
+        <div class="tt-content-panel" id="tt-panel-train">
+            <div class="tt-panel-card">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                    <div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.8rem;">
+                            <span style="background:#0984e3; color:white; border-radius:6px; padding:3px 10px; font-size:0.8rem; font-weight:700;">🚆 台鐵</span>
+                            <span style="font-weight:700; color:var(--text-main);">台中站</span>
+                        </div>
+                        <div class="arrival-item">
+                            <span class="route-badge">自強號</span>
+                            <div>
+                                <div style="font-size:0.82rem; color:var(--text-muted);">往台北</div>
+                                <div class="arrival-time time-normal">每小時班次</div>
+                            </div>
+                        </div>
+                        <div class="arrival-item">
+                            <span class="route-badge">區間車</span>
+                            <div>
+                                <div style="font-size:0.82rem; color:var(--text-muted);">往彰化/豐原</div>
+                                <div class="arrival-time time-soon">每 15 分鐘</div>
+                            </div>
+                        </div>
+                        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.6rem;">
+                            詳細時刻→ <a href="https://www.railway.gov.tw/" target="_blank" style="color:var(--color-secondary);">台鐵官網</a>
+                        </div>
+                    </div>
+                    <div>
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:0.8rem;">
+                            <span style="background:#6c5ce7; color:white; border-radius:6px; padding:3px 10px; font-size:0.8rem; font-weight:700;">🚄 高鐵</span>
+                            <span style="font-weight:700; color:var(--text-main);">高鐵台中站 (烏日)</span>
+                        </div>
+                        <div class="arrival-item">
+                            <span class="route-badge">標準車廂</span>
+                            <div>
+                                <div style="font-size:0.82rem; color:var(--text-muted);">往台北</div>
+                                <div class="arrival-time time-normal">約 50 分鐘</div>
+                            </div>
+                        </div>
+                        <div class="arrival-item">
+                            <span class="route-badge">標準車廂</span>
+                            <div>
+                                <div style="font-size:0.82rem; color:var(--text-muted);">往高雄</div>
+                                <div class="arrival-time time-normal">約 50 分鐘</div>
+                            </div>
+                        </div>
+                        <div style="font-size:0.8rem; color:var(--text-muted); margin-top:0.6rem;">
+                            詳細時刻→ <a href="https://www.thsrc.com.tw/" target="_blank" style="color:var(--color-secondary);">高鐵官網</a>
+                        </div>
+                    </div>
+                </div>
+                <div style="background:#fff8f0; border-radius:10px; padding:0.7rem 1rem; margin-top:1rem; font-size:0.85rem; color:#e67e22;">
+                    <i class="fa-solid fa-lightbulb me-2"></i>
+                    <strong>前往高鐵台中站：</strong>搭乘台中捷運綠線至「高鐵台中站」直達，約 34 分鐘，票價 50 元。
+                </div>
+            </div>
+        </div>
+    </div>
 
 </div><!-- /#search-page -->
+
+<!-- 錯誤提示 Toast -->
+<div class="error-toast" id="error-toast"></div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script>
 // ================================================
-// F-01 一站式查詢平台 — 前端邏輯
-// 鍾晴伃 負責功能
+// 台中大眾運輸 — 一站式查詢頁面 JavaScript
 // ================================================
 
-let allStationsCache = [];
-let selectedTransportTypes = ['all'];
+// ---- 全域狀態 ----
+let allStations = [];   // 所有站點快取
+let searchMap = null;   // Leaflet 地圖物件
+let mapLayers = [];     // 地圖圖層清單
 
-// ---- 初始化 ----
+// ---- 台中重要地標座標 ----
+const LANDMARK_COORDS = {
+    '台中車站': [24.1373, 120.6868],
+    '第二市場': [24.1425, 120.6782],
+    '科博館': [24.1561, 120.6654],
+    '勤美誠品': [24.1513, 120.6638],
+    '市政府': [24.1629, 120.6438],
+    '秋紅谷': [24.1674, 120.6397],
+    '國家歌劇院': [24.1627, 120.6404],
+    '水安宮': [24.1528, 120.6486],
+    '文心森林公園': [24.1432, 120.6487],
+    '南屯': [24.1259, 120.6355],
+    '大慶': [24.1172, 120.6303],
+    '高鐵台中站': [24.1121, 120.6162],
+    '逢甲大學': [24.1798, 120.6450],
+    '東海大學': [24.1802, 120.6013],
+    '松竹': [24.2015, 120.7018],
+    '一中商圈': [24.1487, 120.6853],
+};
+
+function getCoord(name) {
+    for (const key in LANDMARK_COORDS) {
+        if (name && (name.includes(key) || key.includes(name))) {
+            return LANDMARK_COORDS[key];
+        }
+    }
+    return null;
+}
+
+// ---- 頁面初始化 ----
 document.addEventListener('DOMContentLoaded', function () {
-    // 載入所有站點以供自動完成
+    loadStations();
+    buildMrtGrid();
+    initMap();
+});
+
+// 載入站點至下拉選單
+function loadStations() {
     fetch('/api/stations')
         .then(r => r.json())
         .then(res => {
             if (res.status === 'success') {
-                allStationsCache = res.data;
-            }
-        });
+                allStations = res.data;
+                const seen = new Set();
+                const unique = res.data.filter(s => {
+                    if (seen.has(s.station_name)) return false;
+                    seen.add(s.station_name);
+                    return true;
+                });
 
-    // 建立捷運站點列表
-    buildMrtLineDisplay();
+                const startSel = document.getElementById('sel-start');
+                const endSel = document.getElementById('sel-end');
 
-    // 點擊頁面其他處關閉 autocomplete
-    document.addEventListener('click', function (e) {
-        if (!e.target.closest('#start-group')) closeAutocomplete('start');
-        if (!e.target.closest('#end-group')) closeAutocomplete('end');
-    });
-});
-
-// ---- 自動完成 ----
-function handleSearchAutocomplete(role) {
-    const inputEl = document.getElementById(`search-${role}-input`);
-    const listEl = document.getElementById(`${role}-autocomplete-list`);
-    const query = inputEl.value.trim().toLowerCase();
-
-    if (query.length < 1) {
-        listEl.style.display = 'none';
-        return;
-    }
-
-    const filtered = allStationsCache.filter(s =>
-        s.station_name.toLowerCase().includes(query)
-    ).slice(0, 8);
-
-    if (filtered.length === 0) {
-        listEl.innerHTML = '<div class="ac-item text-muted small">找不到符合的站點</div>';
-        listEl.style.display = 'block';
-        return;
-    }
-
-    const typeIcons = { bus: '🚌', mrt: '🚇', transfer: '🔄' };
-    listEl.innerHTML = filtered.map(s => `
-        <div class="ac-item" onclick="selectStation('${role}', '${s.station_id}', '${s.station_name}', '${s.transport_type}')">
-            <span class="ac-icon">${typeIcons[s.transport_type] || '📍'}</span>
-            <span class="ac-name">${s.station_name}</span>
-            <span class="ac-type">${s.transport_type === 'transfer' ? '轉乘點' : (s.transport_type === 'mrt' ? '捷運站' : '公車站')}</span>
-        </div>
-    `).join('');
-    listEl.style.display = 'block';
-}
-
-function selectStation(role, id, name, type) {
-    document.getElementById(`search-${role}-input`).value = name;
-    document.getElementById(`search-${role}-id`).value = id;
-    closeAutocomplete(role);
-}
-
-function closeAutocomplete(role) {
-    const listEl = document.getElementById(`${role}-autocomplete-list`);
-    if (listEl) listEl.style.display = 'none';
-}
-
-// ---- 交換起訖點 ----
-function swapStations() {
-    const startInput = document.getElementById('search-start-input');
-    const endInput = document.getElementById('search-end-input');
-    const startId = document.getElementById('search-start-id');
-    const endId = document.getElementById('search-end-id');
-
-    const tmpVal = startInput.value;
-    const tmpId = startId.value;
-
-    startInput.value = endInput.value;
-    startId.value = endId.value;
-    endInput.value = tmpVal;
-    endId.value = tmpId;
-
-    // 動畫效果
-    const btn = document.getElementById('swap-btn');
-    btn.classList.add('spinning');
-    setTimeout(() => btn.classList.remove('spinning'), 500);
-}
-
-// ---- 交通工具 Chip 切換 ----
-function toggleChip(el) {
-    const type = el.dataset.type;
-    const chips = document.querySelectorAll('.chip');
-
-    if (type === 'all') {
-        chips.forEach(c => c.classList.remove('active'));
-        el.classList.add('active');
-        selectedTransportTypes = ['all'];
-    } else {
-        const allChip = document.querySelector('.chip[data-type="all"]');
-        allChip.classList.remove('active');
-
-        el.classList.toggle('active');
-        const activeChips = [...document.querySelectorAll('.chip.active')].map(c => c.dataset.type);
-
-        if (activeChips.length === 0) {
-            allChip.classList.add('active');
-            selectedTransportTypes = ['all'];
-        } else {
-            selectedTransportTypes = activeChips;
-        }
-    }
-}
-
-// ---- 時間選擇 ----
-function toggleTimeInput() {
-    const mode = document.getElementById('depart-time-mode').value;
-    const timeInput = document.getElementById('scheduled-time');
-    timeInput.style.display = mode === 'scheduled' ? 'block' : 'none';
-    if (mode === 'scheduled') {
-        const now = new Date();
-        now.setMinutes(now.getMinutes() + 5);
-        timeInput.value = now.toISOString().slice(0, 16);
-    }
-}
-
-// ---- 執行查詢 ----
-function executeSearch() {
-    const startId = document.getElementById('search-start-id').value;
-    const endId = document.getElementById('search-end-id').value;
-    const startName = document.getElementById('search-start-input').value.trim();
-    const endName = document.getElementById('search-end-input').value.trim();
-
-    if (!startName || !endName) {
-        showSearchError('請填入出發地點與目的地點！');
-        return;
-    }
-
-    if (startId === endId && startId !== '') {
-        showSearchError('起點與終點不能相同！');
-        return;
-    }
-
-    // 如果沒有選擇 station_id，以名稱模糊匹配第一筆
-    let resolvedStartId = startId;
-    let resolvedEndId = endId;
-
-    if (!resolvedStartId) {
-        const match = allStationsCache.find(s => s.station_name.includes(startName));
-        if (match) resolvedStartId = match.station_id;
-    }
-    if (!resolvedEndId) {
-        const match = allStationsCache.find(s => s.station_name.includes(endName));
-        if (match) resolvedEndId = match.station_id;
-    }
-
-    if (!resolvedStartId || !resolvedEndId) {
-        showSearchError('找不到對應站點，請從下拉選單中選擇站點名稱。');
-        return;
-    }
-
-    // 顯示 Loading 狀態
-    const btn = document.getElementById('btn-search-main');
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i> 計算最佳路線中...';
-    btn.disabled = true;
-
-    fetch(`/api/v1/route_plans?start=${resolvedStartId}&end=${resolvedEndId}`)
-        .then(r => r.json())
-        .then(res => {
-            btn.innerHTML = '<i class="fa-solid fa-location-arrow me-2"></i> 查詢最佳路線<div class="btn-shimmer"></div>';
-            btn.disabled = false;
-
-            if (res.status === 'success') {
-                renderSearchResults(res, startName || res.start_station.station_name, endName || res.end_station.station_name);
-            } else {
-                showSearchError(res.message || '查詢失敗，請稍後再試。');
+                unique.forEach(s => {
+                    startSel.add(new Option(s.station_name, s.station_id));
+                    endSel.add(new Option(s.station_name, s.station_id));
+                });
             }
         })
-        .catch(err => {
-            btn.innerHTML = '<i class="fa-solid fa-location-arrow me-2"></i> 查詢最佳路線<div class="btn-shimmer"></div>';
-            btn.disabled = false;
-            showSearchError('無法連線到伺服器，請確認網路連線。');
+        .catch(() => {
+            // 若 API 失敗，提供預設站點
+            const defaults = [
+                { id: 'BL01', name: '市政府捷運站' },
+                { id: '300_1', name: '台中車站' },
+                { id: '300_2', name: '第二市場' },
+                { id: 'BL05', name: '高鐵台中站' },
+            ];
+            const startSel = document.getElementById('sel-start');
+            const endSel = document.getElementById('sel-end');
+            defaults.forEach(s => {
+                startSel.add(new Option(s.name, s.id));
+                endSel.add(new Option(s.name, s.id));
+            });
         });
 }
 
-// ---- 渲染查詢結果 ----
-function renderSearchResults(res, startName, endName) {
-    const plans = res.plans;
+// 初始化 Leaflet 地圖
+function initMap() {
+    searchMap = L.map('search-map', { zoomControl: true }).setView([24.15, 120.65], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 18
+    }).addTo(searchMap);
+}
+
+// 交換起訖點
+function swapStations() {
+    const startSel = document.getElementById('sel-start');
+    const endSel = document.getElementById('sel-end');
+    const tmp = startSel.value;
+    startSel.value = endSel.value;
+    endSel.value = tmp;
+    const btn = document.getElementById('swap-btn');
+    btn.classList.add('spinning');
+    setTimeout(() => btn.classList.remove('spinning'), 400);
+}
+
+// 切換時間輸入
+function toggleTimeInput() {
+    const mode = document.getElementById('sel-time-mode').value;
+    const input = document.getElementById('scheduled-time-input');
+    input.style.display = mode === 'scheduled' ? 'block' : 'none';
+    if (mode === 'scheduled') {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() + 10);
+        input.value = now.toISOString().slice(0, 16);
+    }
+}
+
+// ================================================
+// 查詢主邏輯
+// ================================================
+function executeSearch() {
+    const startSel = document.getElementById('sel-start');
+    const endSel = document.getElementById('sel-end');
+    const startId = startSel.value;
+    const endId = endSel.value;
+
+    if (!startId) { showToast('請選擇出發地點！'); return; }
+    if (!endId) { showToast('請選擇目的地點！'); return; }
+    if (startId === endId) { showToast('起點與終點不能相同！'); return; }
+
+    const startName = startSel.options[startSel.selectedIndex].text;
+    const endName = endSel.options[endSel.selectedIndex].text;
+
+    // 計算出發時間
+    let departTime = new Date();
+    const timeMode = document.getElementById('sel-time-mode').value;
+    if (timeMode === 'scheduled') {
+        const tv = document.getElementById('scheduled-time-input').value;
+        if (tv) departTime = new Date(tv);
+    }
+
+    const btn = document.getElementById('btn-search');
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>計算最佳路線中...';
+    btn.disabled = true;
+
+    fetch(`/api/v1/route_plans?start=${encodeURIComponent(startId)}&end=${encodeURIComponent(endId)}`)
+        .then(r => r.json())
+        .then(res => {
+            btn.innerHTML = '<i class="fa-solid fa-location-arrow me-2"></i>立即查詢路線';
+            btn.disabled = false;
+
+            if (res.status === 'success' && res.plans && res.plans.length > 0) {
+                renderResults(res.plans, startName, endName, departTime);
+            } else {
+                showToast(res.message || '查詢失敗，請稍後再試。');
+            }
+        })
+        .catch(() => {
+            btn.innerHTML = '<i class="fa-solid fa-location-arrow me-2"></i>立即查詢路線';
+            btn.disabled = false;
+            showToast('無法連線伺服器，請確認網路連線。');
+        });
+}
+
+// ================================================
+// 渲染查詢結果
+// ================================================
+function renderResults(plans, startName, endName, departTime) {
+    // 隱藏 Hero，顯示結果區
+    document.getElementById('search-hero-section').style.display = 'none';
+    document.getElementById('results-section').style.display = 'block';
 
     // 更新摘要
-    document.getElementById('summary-start-name').textContent = startName;
-    document.getElementById('summary-end-name').textContent = endName;
-    document.getElementById('results-subtitle-text').textContent = `共找到 ${plans.length} 個替代方案`;
+    document.getElementById('banner-start').textContent = startName;
+    document.getElementById('banner-end').textContent = endName;
+    document.getElementById('results-title-text').textContent = `共 ${plans.length} 個路線方案`;
 
-    // 渲染方案卡片
-    const grid = document.getElementById('plan-cards-grid');
-    grid.innerHTML = '';
+    // 清空卡片容器
+    const col = document.getElementById('plan-cards-col');
+    col.innerHTML = '';
 
-    const typeColors = {
-        bus: { color: '#0ea5e9', label: '公車', icon: 'fa-bus' },
-        mrt: { color: '#a855f7', label: '捷運', icon: 'fa-subway' },
-        walking: { color: '#94a3b8', label: '步行', icon: 'fa-person-walking' },
-        youbike: { color: '#f59e0b', label: 'YouBike', icon: 'fa-bicycle' },
-    };
-
-    const planIcons = {
-        plan_mrt: '🚇',
-        plan_bus: '🚌',
-        plan_green: '🚲',
+    const typeIconMap = {
+        bus: { icon: 'fa-bus', cls: 'bus', label: '公車', color: '#ff9f43' },
+        mrt: { icon: 'fa-subway', cls: 'mrt', label: '捷運', color: '#00b894' },
+        walking: { icon: 'fa-person-walking', cls: 'walk', label: '步行', color: '#a8b8d0' },
+        walk: { icon: 'fa-person-walking', cls: 'walk', label: '步行', color: '#a8b8d0' },
+        youbike: { icon: 'fa-bicycle', cls: 'youbike', label: 'YouBike', color: '#00b894' },
+        train: { icon: 'fa-train', cls: 'train', label: '台鐵', color: '#0984e3' },
+        hsr: { icon: 'fa-train-subway', cls: 'hsr', label: '高鐵', color: '#6c5ce7' },
     };
 
     plans.forEach((plan, idx) => {
-        const isRecommended = idx === 0;
-        const segHtml = plan.segments.map(seg => {
-            const meta = typeColors[seg.type] || { color: '#94a3b8', label: seg.type, icon: 'fa-route' };
-            return `
-                <div class="result-seg-item">
-                    <div class="result-seg-dot" style="background:${meta.color}; box-shadow:0 0 6px ${meta.color}"></div>
-                    <div class="result-seg-info">
-                        <span class="result-seg-title">${seg.desc}</span>
-                        <span class="result-seg-sub">
-                            ${seg.value} &nbsp;·&nbsp;
-                            <i class="fa-regular fa-clock"></i> ${seg.minutes} 分
-                            &nbsp;·&nbsp;
-                            <i class="fa-solid fa-dollar-sign"></i> NT$ ${seg.fare}
-                        </span>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        const isRec = idx === 0;
+        const arrivalTime = new Date(departTime.getTime() + plan.total_minutes * 60 * 1000);
+        const departStr = formatTime(departTime);
+        const arriveStr = formatTime(arrivalTime);
 
-        grid.innerHTML += `
-            <div class="result-plan-card ${isRecommended ? 'recommended' : ''}">
-                ${isRecommended ? '<div class="recommended-badge"><i class="fa-solid fa-star me-1"></i>推薦方案</div>' : ''}
-                <div class="result-plan-header">
-                    <div class="result-plan-icon">${planIcons[plan.id] || '🚌'}</div>
-                    <div class="result-plan-meta">
-                        <div class="result-plan-name">${plan.name}</div>
-                        <div class="result-plan-desc">${plan.description}</div>
-                    </div>
-                </div>
-                <div class="result-plan-stats">
-                    <div class="result-stat">
-                        <i class="fa-regular fa-clock text-info"></i>
-                        <span class="result-stat-value">${plan.total_minutes} 分鐘</span>
-                        <span class="result-stat-label">預估時間</span>
-                    </div>
-                    <div class="result-stat-divider"></div>
-                    <div class="result-stat">
-                        <i class="fa-solid fa-dollar-sign text-success"></i>
-                        <span class="result-stat-value">NT$ ${plan.total_fare}</span>
-                        <span class="result-stat-label">預估費用</span>
-                    </div>
-                </div>
-                <div class="result-segs-timeline">
-                    ${segHtml}
-                </div>
-                <a href="/?start=${document.getElementById('search-start-id').value}&end=${document.getElementById('search-end-id').value}" class="result-map-btn">
-                    <i class="fa-solid fa-map-location-dot me-1"></i> 在地圖上查看路線
-                </a>
+        // 建立逐段時間軸 HTML
+        let currentTime = new Date(departTime);
+        let timelineHtml = '';
+
+        // 出發點
+        timelineHtml += buildTimelineStep('arrive', 'fa-circle-play', '#00b894', departStr, `從 <strong>${startName}</strong> 出發`, '', '');
+
+        plan.segments.forEach((seg, sIdx) => {
+            const meta = typeIconMap[seg.type] || { icon: 'fa-route', cls: 'walk', label: seg.type, color: '#a8b8d0' };
+            const segStartTime = formatTime(currentTime);
+            currentTime = new Date(currentTime.getTime() + (seg.minutes || 5) * 60 * 1000);
+            const segEndTime = formatTime(currentTime);
+
+            const fareText = (seg.fare > 0) ? `票價 NT$ ${seg.fare}` : '免費';
+            const metaText = `${seg.minutes || 0} 分鐘・${fareText}`;
+
+            timelineHtml += buildTimelineStep(
+                meta.cls,
+                meta.icon,
+                meta.color,
+                segStartTime,
+                seg.desc || `搭乘${meta.label}`,
+                metaText,
+                seg.fare > 0 ? `NT$ ${seg.fare}` : ''
+            );
+        });
+
+        // 抵達
+        timelineHtml += buildTimelineStep('arrive', 'fa-flag-checkered', '#ff75a0', arriveStr, `抵達 <strong>${endName}</strong>`, '行程結束', '');
+
+        const cardHtml = `
+        <div class="plan-card ${isRec ? 'recommended' : ''} ${idx === 0 ? 'selected' : ''}"
+             id="plan-card-${idx}"
+             onclick="selectPlan(${idx}, '${escStr(startName)}', '${escStr(endName)}')">
+            <div class="plan-card-header">
+                <span class="plan-name">${plan.name || (isRec ? '推薦最佳方案' : '替代方案 ' + idx)}</span>
+                <span class="${isRec ? 'plan-badge-rec' : 'plan-badge-alt'}">${isRec ? '⭐ 推薦' : '🔄 替代'}</span>
             </div>
-        `;
+            <div class="plan-stats-row">
+                <div class="plan-stat">
+                    <span class="plan-stat-value">${plan.total_minutes}</span>
+                    <div class="plan-stat-label">分鐘</div>
+                </div>
+                <div class="plan-stat">
+                    <span class="plan-stat-value" style="color: var(--color-primary);">NT$${plan.total_fare}</span>
+                    <div class="plan-stat-label">預估費用</div>
+                </div>
+                <div class="plan-arrival">
+                    <div style="font-size:0.72rem; color:var(--text-muted);">出發 ${departStr}</div>
+                    <div style="font-size:1rem; font-weight:800; color:var(--color-secondary);">抵達 ${arriveStr}</div>
+                </div>
+            </div>
+            <div class="plan-timeline">
+                ${timelineHtml}
+            </div>
+        </div>`;
+
+        col.innerHTML += cardHtml;
     });
 
-    // 顯示結果區塊，隱藏 Hero
-    document.querySelector('.search-hero').style.display = 'none';
-    document.querySelector('.search-results-section').style.display = 'block';
+    // 預設選中第一個方案，更新地圖
+    updateMap(startName, endName, plans[0]);
+
+    // 重整地圖尺寸
+    setTimeout(() => { if (searchMap) searchMap.invalidateSize(); }, 300);
+
     window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    // 儲存路線資料供地圖切換使用
+    window._currentPlans = plans;
+    window._currentStart = startName;
+    window._currentEnd = endName;
 }
 
-// ---- 返回查詢 ----
+function buildTimelineStep(iconCls, iconFa, iconColor, timeStr, desc, meta, fare) {
+    return `
+    <div class="timeline-step">
+        <div class="timeline-icon ${iconCls}" style="background: ${iconColor};">
+            <i class="fa-solid ${iconFa}"></i>
+        </div>
+        <div class="timeline-body">
+            <div class="timeline-step-time">${timeStr}</div>
+            <div class="timeline-step-desc">${desc}</div>
+            ${meta ? `<div class="timeline-step-meta">${meta}</div>` : ''}
+            ${fare ? `<div class="timeline-step-fare">${fare}</div>` : ''}
+        </div>
+    </div>`;
+}
+
+function escStr(s) {
+    return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+function selectPlan(idx, startName, endName) {
+    document.querySelectorAll('.plan-card').forEach((c, i) => {
+        c.classList.toggle('selected', i === idx);
+    });
+    if (window._currentPlans && window._currentPlans[idx]) {
+        updateMap(startName, endName, window._currentPlans[idx]);
+    }
+}
+
 function backToSearch() {
-    document.querySelector('.search-hero').style.display = 'flex';
-    document.querySelector('.search-results-section').style.display = 'none';
-}
-
-// ---- 錯誤提示 ----
-function showSearchError(msg) {
-    const existing = document.getElementById('search-error-toast');
-    if (existing) existing.remove();
-
-    const toast = document.createElement('div');
-    toast.id = 'search-error-toast';
-    toast.className = 'search-error-toast';
-    toast.innerHTML = `<i class="fa-solid fa-circle-exclamation me-2"></i>${msg}`;
-    document.body.appendChild(toast);
-
-    setTimeout(() => toast.classList.add('show'), 10);
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 400);
-    }, 3500);
+    document.getElementById('search-hero-section').style.display = 'flex';
+    document.getElementById('results-section').style.display = 'none';
 }
 
 // ================================================
-// 票價試算
+// 地圖更新
 // ================================================
-function calcBusFare() {
-    const km = parseFloat(document.getElementById('bus-distance-input').value) || 0;
-    let fare = 0;
-    if (km > 10) {
-        fare = Math.min(10, Math.ceil((km - 10) * 2.5));
+function updateMap(startName, endName, plan) {
+    if (!searchMap) return;
+
+    // 清除舊圖層
+    mapLayers.forEach(l => searchMap.removeLayer(l));
+    mapLayers = [];
+
+    const startCoord = getCoord(startName) || [24.15, 120.65];
+    const endCoord = getCoord(endName) || [24.16, 120.66];
+
+    // 起點 Marker
+    const startMarker = L.circleMarker(startCoord, {
+        radius: 10, color: '#00b894', fillColor: '#00b894',
+        fillOpacity: 1, weight: 3
+    }).bindPopup(`<strong>出發地</strong><br>${startName}`);
+    startMarker.addTo(searchMap);
+    mapLayers.push(startMarker);
+
+    // 終點 Marker
+    const endMarker = L.circleMarker(endCoord, {
+        radius: 10, color: '#ff75a0', fillColor: '#ff75a0',
+        fillOpacity: 1, weight: 3
+    }).bindPopup(`<strong>目的地</strong><br>${endName}`);
+    endMarker.addTo(searchMap);
+    mapLayers.push(endMarker);
+
+    // 路線線條（以中間點插值）
+    const typeColorMap = {
+        bus: '#ff9f43', mrt: '#00b894', walking: '#a8b8d0', walk: '#a8b8d0',
+        train: '#0984e3', hsr: '#6c5ce7', youbike: '#00b894'
+    };
+
+    // 建立途徑點 (簡化：起點→中間→終點)
+    const waypoints = [startCoord];
+    if (plan && plan.segments) {
+        plan.segments.forEach((seg, i) => {
+            const frac = (i + 1) / (plan.segments.length + 1);
+            const mid = [
+                startCoord[0] + (endCoord[0] - startCoord[0]) * frac + (Math.random() * 0.008 - 0.004),
+                startCoord[1] + (endCoord[1] - startCoord[1]) * frac + (Math.random() * 0.008 - 0.004)
+            ];
+            waypoints.push(mid);
+        });
     }
-    document.getElementById('bus-fare-result').textContent = `${fare} 元`;
-    document.getElementById('bus-fare-result').className = `fare-result ${fare === 0 ? 'text-success' : 'text-warning'}`;
+    waypoints.push(endCoord);
+
+    // 繪製各段線條
+    if (plan && plan.segments) {
+        plan.segments.forEach((seg, i) => {
+            const color = typeColorMap[seg.type] || '#94a3b8';
+            const segLine = L.polyline(
+                [waypoints[i], waypoints[i + 1]],
+                { color, weight: 5, opacity: 0.85, dashArray: seg.type === 'walking' || seg.type === 'walk' ? '8 6' : null }
+            ).bindPopup(`<strong>${seg.desc || ''}</strong><br>${seg.minutes || 0} 分鐘`);
+            segLine.addTo(searchMap);
+            mapLayers.push(segLine);
+        });
+        // 最後一段到終點（如果 segments.length = n，最後連接到 endCoord）
+        const lastSeg = plan.segments[plan.segments.length - 1];
+        if (lastSeg) {
+            const color = typeColorMap[lastSeg.type] || '#94a3b8';
+            const lastLine = L.polyline(
+                [waypoints[waypoints.length - 2], endCoord],
+                { color, weight: 5, opacity: 0.85 }
+            );
+            lastLine.addTo(searchMap);
+            mapLayers.push(lastLine);
+        }
+    } else {
+        const line = L.polyline([startCoord, endCoord], { color: '#54a0ff', weight: 5, opacity: 0.85 });
+        line.addTo(searchMap);
+        mapLayers.push(line);
+    }
+
+    document.getElementById('map-status-text').textContent = `${startName} → ${endName}`;
+    searchMap.fitBounds([startCoord, endCoord], { padding: [40, 40] });
 }
 
-function calcMrtFare() {
-    const stations = parseInt(document.getElementById('mrt-stations-input').value) || 0;
-    const fare = stations > 0 ? Math.min(50, 20 + (stations * 5)) : 0;
-    document.getElementById('mrt-fare-result').textContent = `${fare} 元`;
-    document.getElementById('mrt-fare-result').className = `fare-result ${fare <= 25 ? 'text-success' : 'text-warning'}`;
+// ================================================
+// 工具函式
+// ================================================
+function formatTime(date) {
+    return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-function calcYoubikeFare() {
-    const mins = parseInt(document.getElementById('youbike-mins-input').value) || 0;
-    let fare = 0;
-    if (mins > 0) {
-        const intervals = Math.ceil(mins / 30);
-        if (mins <= 240) fare = intervals * 10;
-        else if (mins <= 480) fare = 80 + (Math.ceil((mins - 240) / 30) * 20);
-        else fare = 80 + 160 + (Math.ceil((mins - 480) / 30) * 40);
-    }
-    document.getElementById('youbike-fare-result').textContent = `${fare} 元`;
-    document.getElementById('youbike-fare-result').className = `fare-result ${fare <= 20 ? 'text-success' : 'text-warning'}`;
+function showToast(msg) {
+    const t = document.getElementById('error-toast');
+    t.innerHTML = `<i class="fa-solid fa-circle-exclamation me-2"></i>${msg}`;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3500);
 }
 
 // ================================================
 // 班次快查
 // ================================================
-function switchTimetableTab(tab) {
-    document.querySelectorAll('.tt-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.tt-content').forEach(c => c.classList.remove('active'));
+function switchTTTab(tab) {
+    document.querySelectorAll('.tt-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tt-content-panel').forEach(p => p.classList.remove('active'));
     document.getElementById(`tt-tab-${tab}`).classList.add('active');
-    document.getElementById(`tt-content-${tab}`).classList.add('active');
+    document.getElementById(`tt-panel-${tab}`).classList.add('active');
 }
 
-function searchBusStop() {
-    const query = document.getElementById('bus-stop-search').value.trim();
-    const resultsEl = document.getElementById('bus-timetable-results');
+// 防抖
+let busSearchTimer = null;
+function debouncedBusSearch() {
+    clearTimeout(busSearchTimer);
+    busSearchTimer = setTimeout(searchBusArrival, 500);
+}
+
+function searchBusArrival() {
+    const query = document.getElementById('bus-stop-input').value.trim();
+    const resultEl = document.getElementById('bus-arrival-results');
     if (!query) return;
 
-    // 先從 cache 中找最接近的站點
-    const matches = allStationsCache.filter(s =>
+    const matches = allStations.filter(s =>
         s.station_name.includes(query) && (s.transport_type === 'bus' || s.transport_type === 'transfer')
-    ).slice(0, 3);
+    ).slice(0, 4);
 
     if (matches.length === 0) {
-        resultsEl.innerHTML = '<div class="tt-placeholder"><p class="text-muted small">找不到符合站點，請嘗試其他關鍵字</p></div>';
+        resultEl.innerHTML = '<div class="tt-placeholder"><p>找不到符合站點，請嘗試其他關鍵字</p></div>';
         return;
     }
 
-    resultsEl.innerHTML = '<div class="text-center py-2"><div class="spinner-border spinner-border-sm text-info"></div><span class="text-muted small ms-2">查詢即時班次中...</span></div>';
+    resultEl.innerHTML = '<div class="tt-placeholder"><div class="spinner-border spinner-border-sm text-info"></div><span class="ms-2 text-muted small">查詢即時班次中...</span></div>';
 
-    // 使用第一個符合的站點查詢
     fetch(`/api/station/${matches[0].station_id}`)
         .then(r => r.json())
         .then(res => {
             if (res.status === 'success' && res.data.bus && res.data.bus.length > 0) {
-                resultsEl.innerHTML = `
-                    <div class="tt-station-name"><i class="fa-solid fa-location-dot me-1 text-info"></i>${matches[0].station_name}</div>
-                    <div class="arrival-list">
-                        ${res.data.bus.map(item => {
-                            const min = Math.floor(item.EstimateTime / 60);
-                            const timeText = item.EstimateTime <= 60 ? '進站中' : `${min} 分鐘`;
-                            const cls = item.EstimateTime <= 60 ? 'time-soon' : (min > 8 ? 'time-later' : 'time-normal');
-                            return `
-                                <div class="arrival-item">
-                                    <span class="route-num">${item.RouteName} 路</span>
-                                    <span class="arrival-time ${cls}">${timeText}</span>
-                                </div>`;
-                        }).join('')}
-                    </div>
-                `;
+                resultEl.innerHTML = `
+                <div style="font-weight:700; margin-bottom:0.6rem; color:var(--color-secondary);">
+                    <i class="fa-solid fa-location-dot me-1"></i>${matches[0].station_name}
+                </div>
+                <div class="arrival-list">
+                    ${res.data.bus.map(item => {
+                        const min = Math.floor(item.EstimateTime / 60);
+                        const timeText = item.EstimateTime <= 60 ? '🔴 進站中' : `${min} 分鐘`;
+                        const cls = item.EstimateTime <= 60 ? 'time-soon' : (min > 8 ? 'time-later' : 'time-normal');
+                        return `<div class="arrival-item">
+                            <span class="route-badge">${item.RouteName}</span>
+                            <span class="arrival-time ${cls}">${timeText}</span>
+                        </div>`;
+                    }).join('')}
+                </div>`;
             } else {
-                resultsEl.innerHTML = '<div class="tt-placeholder"><p class="text-muted small">此站目前無班次資料</p></div>';
+                resultEl.innerHTML = '<div class="tt-placeholder"><p>此站目前無班次資料</p></div>';
             }
         })
         .catch(() => {
-            resultsEl.innerHTML = '<div class="tt-placeholder"><p class="text-danger small">連線失敗，請稍後再試</p></div>';
+            resultEl.innerHTML = '<div class="tt-placeholder"><p class="text-danger">連線失敗，請稍後再試</p></div>';
         });
 }
 
-// 建立台中捷運站點按鈕列
-function buildMrtLineDisplay() {
+// 建立捷運站按鈕列
+function buildMrtGrid() {
     const stations = [
         '北屯總站', '舊社', '松竹', '四維國小', '文心崇德', '文心中清',
         '文華高中', '文心櫻花', '市政府', '水安宮', '文心森林公園',
         '南屯', '豐樂公園', '大慶', '九張犁', '九德', '烏日', '高鐵台中站'
     ];
-    const container = document.getElementById('mrt-line-display');
-    container.innerHTML = `
-        <div class="mrt-stations-list">
-            ${stations.map((s, i) => `
-                <button class="mrt-station-btn" onclick="queryMrtStation('${s}', ${i})">
-                    <span class="mrt-station-num">${i + 1}</span>
-                    <span class="mrt-station-name-btn">${s}</span>
-                </button>
-            `).join('')}
-        </div>
-    `;
+    const grid = document.getElementById('mrt-stations-grid');
+    grid.innerHTML = stations.map((s, i) => `
+        <button class="mrt-stn-btn" onclick="queryMrtArrival('${s}', ${i}, this)">
+            <span class="mrt-stn-num">${i + 1}</span>
+            ${s}
+        </button>`).join('');
 }
 
-function queryMrtStation(stationName, idx) {
-    const resultsEl = document.getElementById('mrt-timetable-results');
-    resultsEl.style.display = 'block';
-    resultsEl.innerHTML = '<div class="text-center py-2"><div class="spinner-border spinner-border-sm text-secondary"></div><span class="text-muted small ms-2">查詢捷運發車時刻中...</span></div>';
+function queryMrtArrival(stationName, idx, btn) {
+    document.querySelectorAll('.mrt-stn-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
 
-    // 匹配資料庫中的捷運站
-    const match = allStationsCache.find(s => s.transport_type === 'mrt' && s.station_name.includes(stationName.replace('站', '')));
-    if (!match) {
-        // 使用任一個捷運站的 API 回應
-        const anyMrt = allStationsCache.find(s => s.transport_type === 'mrt');
-        if (!anyMrt) {
-            resultsEl.innerHTML = '<div class="tt-placeholder"><p class="text-muted small">尚無捷運站點資料</p></div>';
-            return;
-        }
-        fetchMrtData(anyMrt.station_id, stationName, idx, resultsEl);
+    const resultEl = document.getElementById('mrt-arrival-results');
+    resultEl.innerHTML = '<div class="tt-placeholder"><div class="spinner-border spinner-border-sm" style="color:#00b894;"></div><span class="ms-2 text-muted small">查詢捷運發車時刻中...</span></div>';
+
+    const match = allStations.find(s => s.transport_type === 'mrt' && s.station_name.includes(stationName.replace('站', '')));
+    const targetId = match ? match.station_id : (allStations.find(s => s.transport_type === 'mrt') || {}).station_id;
+
+    if (!targetId) {
+        resultEl.innerHTML = '<div class="tt-placeholder"><p>尚無捷運站點資料</p></div>';
         return;
     }
-    fetchMrtData(match.station_id, stationName, idx, resultsEl);
-}
 
-function fetchMrtData(stationId, stationName, idx, resultsEl) {
-    fetch(`/api/station/${stationId}`)
+    fetch(`/api/station/${targetId}`)
         .then(r => r.json())
         .then(res => {
             if (res.status === 'success' && res.data.mrt && res.data.mrt.length > 0) {
-                resultsEl.innerHTML = `
-                    <div class="tt-station-name"><i class="fa-solid fa-subway me-1 text-secondary"></i>${stationName}</div>
-                    <div class="arrival-list">
-                        ${res.data.mrt.map(item => {
-                            const min = Math.floor(item.EstimateTime / 60);
-                            const cls = item.EstimateTime <= 180 ? 'time-soon' : 'time-normal';
-                            return `
-                                <div class="arrival-item">
-                                    <span class="route-num">往 ${item.Destination}</span>
-                                    <span class="arrival-time ${cls}">${min} 分鐘</span>
-                                </div>`;
-                        }).join('')}
-                    </div>
-                `;
+                resultEl.innerHTML = `
+                <div style="font-weight:700; margin-bottom:0.6rem; color:#00b894;">
+                    <i class="fa-solid fa-subway me-1"></i>${stationName}站
+                </div>
+                <div class="arrival-list">
+                    ${res.data.mrt.map(item => {
+                        const min = Math.floor(item.EstimateTime / 60);
+                        const cls = item.EstimateTime <= 180 ? 'time-soon' : 'time-normal';
+                        return `<div class="arrival-item">
+                            <span class="route-badge">往 ${item.Destination}</span>
+                            <span class="arrival-time ${cls}">${min} 分鐘</span>
+                        </div>`;
+                    }).join('')}
+                </div>`;
             } else {
-                resultsEl.innerHTML = '<div class="tt-placeholder"><p class="text-muted small">此時段無發車資料</p></div>';
+                resultEl.innerHTML = '<div class="tt-placeholder"><p>此時段無發車資料</p></div>';
             }
         })
         .catch(() => {
-            resultsEl.innerHTML = '<div class="tt-placeholder"><p class="text-danger small">連線失敗</p></div>';
+            resultEl.innerHTML = '<div class="tt-placeholder"><p class="text-danger">連線失敗</p></div>';
         });
 }
 </script>
