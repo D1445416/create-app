@@ -185,7 +185,7 @@ def calculate_best_route(start_point, end_point, preferences):
                 'walk': '步行'
             }
 
-            for next_loc, mode, duration, cost, label in path:
+            for next_loc, mode, duration, cost, label, waypoints in path:
                 formatted_steps.append({
                     'mode': mode,
                     'mode_name': mode_names.get(mode, '步行'),
@@ -193,7 +193,8 @@ def calculate_best_route(start_point, end_point, preferences):
                     'to': next_loc,
                     'duration': duration,
                     'cost': cost,
-                    'instruction': f"{label}，從 {current_loc} 到 {next_loc}"
+                    'instruction': f"{label}，從 {current_loc} 到 {next_loc}",
+                    'waypoints': waypoints
                 })
                 current_loc = next_loc
 
@@ -223,10 +224,10 @@ def calculate_best_route(start_point, end_point, preferences):
             continue
         visited[curr] = time
 
-        for neighbor, mode, duration, cost, label in graph.get(curr, []):
+        for neighbor, mode, duration, cost, label, waypoints in graph.get(curr, []):
             if neighbor not in visited or visited[neighbor] > time + duration:
                 new_path = list(path)
-                new_path.append((neighbor, mode, duration, cost, label))
+                new_path.append((neighbor, mode, duration, cost, label, waypoints))
                 heapq.heappush(pq, (time + duration, neighbor, new_path, total_c + cost))
 
     return None
