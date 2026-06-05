@@ -52,3 +52,10 @@ def init_db(db=None):
     
     if close_after:
         db.close()
+
+# 匯出資料模型與連線管理函數，避免循環引用與匯入錯誤
+from app.models.user import UserModel
+from app.models.route_history import RouteHistoryModel
+from app.models.station import Station, CrowdednessCache, get_db_connection
+from app.models.favorite import Favorite
+

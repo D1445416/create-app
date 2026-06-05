@@ -2,14 +2,10 @@
 
 {% block title %}多運具轉乘路徑演算 - 交通資訊整合平台{% endblock %}
 
-{% block styles %}
+{% block head %}
 <!-- Leaflet.js CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <style>
-    body {
-        background-color: #f1f3f7;
-    }
-    
     /* 質感 Glassmorphism 卡片 */
     .glass-card {
         background: rgba(255, 255, 255, 0.9);
@@ -27,6 +23,7 @@
     }
     
     .map-container {
+        position: relative;
         height: 650px;
         border-radius: 16px;
         box-shadow: 0 10px 35px rgba(0, 0, 0, 0.06);
@@ -415,7 +412,7 @@ document.addEventListener("DOMContentLoaded", function() {
             }).addTo(map);
 
             polyline.bindPopup(`
-                <div style="font-family: system-ui;">
+                <div style="font-family: var(--font-body);">
                     <h6 style="margin: 0 0 5px 0; font-weight: bold; color: ${modeColor};">${step.mode_name} 路段</h6>
                     <p style="margin: 0 0 3px 0; font-size: 13px;">${step.instruction}</p>
                     <small style="color: #6c757d;">花費時間: ${step.duration} 分鐘 | 票價: ${step.cost} 元</small>

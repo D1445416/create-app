@@ -37,7 +37,7 @@ class Favorite:
         try:
             conn = get_db_connection()
             query = """
-                SELECT f.id, f.station_id, f.added_at, s.station_name, s.lat, s.lon, s.transport_type
+                SELECT f.id, f.station_id, f.added_at, s.name AS station_name, s.lat, s.lng AS lon, s.type AS transport_type
                 FROM favorites f
                 LEFT JOIN stations s ON f.station_id = s.station_id
                 ORDER BY f.added_at DESC

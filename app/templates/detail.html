@@ -2,6 +2,52 @@
 
 {% block title %}{{ station.name }} - 站點詳情 - 台中大眾運輸站點擁擠度系統{% endblock %}
 
+{% block head %}
+<style>
+    /* 站點詳細樣式補充 */
+    .glass-panel {
+        background: var(--bg-card);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid var(--border-glass);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        transition: var(--transition-smooth);
+    }
+    .badge-metro {
+        background-color: #198754 !important;
+        color: white;
+    }
+    .badge-bus {
+        background-color: #ffc107 !important;
+        color: #1f2937;
+    }
+    .crowd-indicator {
+        border-radius: 50px;
+        font-weight: 700;
+        box-shadow: 0 0 10px rgba(255,255,255,0.05);
+    }
+    .crowd-green {
+        background-color: rgba(25, 135, 84, 0.15);
+        color: #198754;
+        border: 1px solid rgba(25, 135, 84, 0.3);
+        text-shadow: 0 0 10px rgba(25, 135, 84, 0.2);
+    }
+    .crowd-orange {
+        background-color: rgba(255, 193, 7, 0.15);
+        color: #ffc107;
+        border: 1px solid rgba(255, 193, 7, 0.3);
+        text-shadow: 0 0 10px rgba(255, 193, 7, 0.2);
+    }
+    .crowd-red {
+        background-color: rgba(220, 53, 69, 0.15);
+        color: #dc3545;
+        border: 1px solid rgba(220, 53, 69, 0.3);
+        text-shadow: 0 0 10px rgba(220, 53, 69, 0.2);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row g-4 mt-2 justify-content-center">
     <div class="col-lg-9">
@@ -79,10 +125,25 @@
                 </div>
             </div>
 
-            <!-- 強制手動更新快取按鈕 -->
-            <div class="mt-5 d-flex gap-3">
-                <button id="btn-force-refresh" class="btn btn-info text-white w-100 py-3 fw-bold fs-6 shadow-sm">
+            <!-- 即時班次與預估到站時間 -->
+            <div class="glass-panel p-4 mt-4 bg-black bg-opacity-20 border-opacity-50">
+                <h5 class="text-white fw-bold mb-3 d-flex align-items-center gap-2">
+                    <span>⏰</span> 即時班次與到站時間 (Schedules & Departures)
+                </h5>
+                <div id="arrival-schedule-container" class="py-2">
+                    <div class="text-center text-muted py-3">
+                        <i class="fa-solid fa-spinner fa-spin text-accent me-2"></i>正在載入即時班次與時刻表...
+                    </div>
+                </div>
+            </div>
+
+            <!-- 強制手動更新與收藏按鈕 -->
+            <div class="mt-5 d-flex flex-column flex-sm-row gap-3">
+                <button id="btn-force-refresh" class="btn btn-info text-white flex-grow-1 py-3 fw-bold fs-6 shadow-sm">
                     🔄 強制同步更新外部 TDX API 即時資料
+                </button>
+                <button id="btn-bookmark-station" class="btn btn-accent flex-grow-1 py-3 fw-bold fs-6 shadow-sm">
+                    ⭐ 收藏此站點至我的常用清單
                 </button>
             </div>
             
@@ -99,6 +160,75 @@ document.addEventListener('DOMContentLoaded', () => {
     const alertContainer = document.getElementById('refresh-alert-container');
     
     if (!refreshBtn) return;
+
+    // 載入即時時刻表資料
+    async function loadArrivalSchedules() {
+        const container = document.getElementById('arrival-schedule-container');
+        if (!container) return;
+
+        try {
+            const response = await fetch(`/api/station/{{ station.station_id }}`);
+            if (!response.ok) throw new Error('無法取得班次時刻資料');
+            const res = await response.json();
+
+            if (res.status === 'success') {
+                const data = res.data;
+                let html = '';
+
+                if (data.mrt && data.mrt.length > 0) {
+                    html = data.mrt.map(item => {
+                        const mins = Math.ceil(item.EstimateTime / 60);
+                        const timeText = mins <= 1 ? '<i class="fa-solid fa-angles-right fa-fade me-1 text-danger"></i>進站中' : `${mins} 分鐘`;
+                        const badgeClass = mins <= 1 ? 'bg-danger text-white' : 'bg-glass border-glass-subtle text-accent';
+                        return `
+                            <div class="d-flex justify-content-between align-items-center bg-glass p-3 border-glass-subtle rounded-3 mb-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fs-5">🚇</span>
+                                    <div>
+                                        <span class="font-bold text-light">往 ${item.Destination}</span>
+                                        <div class="text-muted small mt-1">台中捷運綠線 (Taichung Metro)</div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <span class="badge ${badgeClass} px-3 py-2 rounded-pill font-bold">${timeText}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else if (data.bus && data.bus.length > 0) {
+                    html = data.bus.map(item => {
+                        const mins = Math.ceil(item.EstimateTime / 60);
+                        const timeText = mins <= 1 ? '<i class="fa-solid fa-angles-right fa-fade me-1 text-danger"></i>進站中' : `${mins} 分鐘`;
+                        const badgeClass = mins <= 1 ? 'bg-danger text-white' : 'bg-glass border-glass-subtle text-accent';
+                        return `
+                            <div class="d-flex justify-content-between align-items-center bg-glass p-3 border-glass-subtle rounded-3 mb-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fs-5">🚌</span>
+                                    <div>
+                                        <span class="font-bold text-light">${item.RouteName} 路公車</span>
+                                        <div class="text-muted small mt-1">台中市幹線公車 (Taichung City Bus)</div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <span class="badge ${badgeClass} px-3 py-2 rounded-pill font-bold">${timeText}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    html = '<div class="text-center text-muted py-3">目前沒有預估的到站班次資料。</div>';
+                }
+                container.innerHTML = html;
+            } else {
+                throw new Error(res.message || '資料讀取失敗');
+            }
+        } catch (err) {
+            container.innerHTML = `<div class="text-danger small py-3"><i class="fa-solid fa-triangle-exclamation me-1"></i>無法獲取即時班次資料: ${err.message}</div>`;
+        }
+    }
+
+    // 初始化載入
+    loadArrivalSchedules();
 
     // 計算快取是否已經過期 (由前端輔助顯示)
     function checkFrontendCacheStatus() {
@@ -174,6 +304,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 checkFrontendCacheStatus();
+                // 重新整理班次表
+                loadArrivalSchedules();
 
                 // 3. 顯示成功 Toast / Alert
                 alertContainer.innerHTML = `
@@ -197,6 +329,45 @@ document.addEventListener('DOMContentLoaded', () => {
             refreshBtn.innerHTML = '🔄 強制同步更新外部 TDX API 即時資料';
         }
     });
+
+    // 收藏站點邏輯
+    const bookmarkBtn = document.getElementById('btn-bookmark-station');
+    if (bookmarkBtn) {
+        bookmarkBtn.addEventListener('click', async () => {
+            bookmarkBtn.disabled = true;
+            try {
+                const response = await fetch(`/favorites/add/{{ station.station_id }}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const res = await response.json();
+                if (response.ok && res.status === 'success') {
+                    alertContainer.innerHTML = `
+                        <div class="alert alert-success m-0 p-3 d-flex align-items-center glass-panel border-success" role="alert">
+                            <span class="fs-4 me-2">⭐</span>
+                            <div>站點「{{ station.name }}」已成功加入您的最愛收藏清單！</div>
+                        </div>
+                    `;
+                    bookmarkBtn.innerHTML = '⭐ 已成功收藏此站點';
+                    bookmarkBtn.className = 'btn btn-success flex-grow-1 py-3 fw-bold fs-6 shadow-sm';
+                } else {
+                    throw new Error(res.message || '加入收藏失敗');
+                }
+            } catch (err) {
+                alertContainer.innerHTML = `
+                    <div class="alert alert-warning m-0 p-3 d-flex align-items-center glass-panel border-warning" role="alert">
+                        <span class="fs-4 me-2">⚠️</span>
+                        <div>加入收藏失敗: ${err.message}</div>
+                    </div>
+                `;
+            } finally {
+                bookmarkBtn.disabled = false;
+            }
+        });
+    }
 });
 </script>
 {% endblock %}
