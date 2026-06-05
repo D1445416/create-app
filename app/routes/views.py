@@ -238,11 +238,11 @@ def api_route_plans():
             'BL02': '水安宮捷運站',
             'BL03': '文心森林公園捷運站',
             'BL04': '松竹捷運站',
-            'BL05': '高鐵台中捷運站',
+            'BL05': '高鐵台中站',
             '300_1': '台中車站',
             '300_2': '第二市場公車站',
-            '300_3': '科博館公車站',
-            '300_4': '秋紅谷公車站',
+            '300_3': '科博館',
+            '300_4': '秋紅谷',
             'HUB_01': '市政府捷運站',
             'HUB_02': '台中車站',
         }
@@ -257,6 +257,23 @@ def api_route_plans():
         if not end_name and end_id:
             e = Station.get_by_id(end_id)
             if e: end_name = e.name
+
+        # 清理名稱以正確匹配 route_calculator.py 中的 LANDMARKS 鍵值
+        def clean_name(name):
+            if not name:
+                return name
+            if '台中車站' in name:
+                return '台中車站'
+            if '科博館' in name:
+                return '科博館'
+            if '秋紅谷' in name:
+                return '秋紅谷'
+            if '高鐵台中' in name:
+                return '高鐵台中站'
+            return name
+
+        start_name = clean_name(start_name)
+        end_name = clean_name(end_name)
 
         # 設定終極預設
         if not start_name: start_name = '市政府捷運站'
