@@ -1,4 +1,4 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}多運具轉乘路徑演算 - 交通資訊整合平台{% endblock %}
 
@@ -53,56 +53,115 @@
     /* 時間軸設計 */
     .timeline-container {
         position: relative;
+        padding-left: 0;
     }
     
-    .timeline-item {
-        position: relative;
-        padding-left: 32px;
-        margin-bottom: 20px;
-    }
-    
-    .timeline-item::before {
+    .timeline-container::before {
         content: '';
         position: absolute;
-        left: 9px;
-        top: 10px;
-        bottom: -28px;
-        width: 2px;
-        background-color: #cbd5e1;
+        left: 17px; /* center of the 36px icon */
+        top: 15px;
+        bottom: 15px;
+        width: 4px;
+        background: #cbd5e1;
+        border-radius: 2px;
+        z-index: 1;
     }
-    
-    .timeline-item:last-child::before {
-        display: none;
+
+    .timeline-item {
+        position: relative;
+        padding-left: 54px;
+        margin-bottom: 24px;
     }
-    
+
+    .timeline-item::before {
+        display: none !important;
+    }
+
     .timeline-icon {
         position: absolute;
         left: 0;
-        top: 2px;
-        width: 20px;
-        height: 20px;
+        top: 0;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
         background-color: #fff;
-        border: 4px solid #0d6efd;
+        border: 3px solid #cbd5e1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         z-index: 2;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 3px 6px rgba(0,0,0,0.08);
+        font-size: 0.95rem;
     }
 
     .timeline-icon.start {
         border-color: #198754;
+        background-color: #198754;
+        color: #fff;
     }
 
     .timeline-icon.end {
         border-color: #dc3545;
+        background-color: #dc3545;
+        color: #fff;
     }
 
     .timeline-icon.transfer {
         border-color: #ffc107;
-        width: 16px;
-        height: 16px;
-        left: 2px;
-        top: 4px;
+        background-color: #fffdf5;
+        color: #d97706;
     }
+
+    .timeline-icon.mode-icon {
+        background-color: #f8fafc;
+        color: #334155;
+    }
+    
+    .timeline-icon.mode-icon.mrt { border-color: #008e4f; color: #008e4f; }
+    .timeline-icon.mode-icon.bus { border-color: #f29400; color: #f29400; }
+    .timeline-icon.mode-icon.youbike { border-color: #8cc63f; color: #8cc63f; }
+    .timeline-icon.mode-icon.train { border-color: #005087; color: #005087; }
+    .timeline-icon.mode-icon.walk { border-color: #6c757d; color: #6c757d; }
+
+    .segment-card {
+        transition: all 0.2s ease;
+        background: #ffffff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 14px !important;
+    }
+    
+    .segment-card:hover {
+        box-shadow: 0 6px 15px rgba(0, 0, 0, 0.05) !important;
+    }
+
+    .transfer-alert {
+        background-color: #fff9e6;
+        border: 1px dashed #ffe0b2;
+        border-radius: 12px;
+        color: #b78103;
+    }
+
+    .bg-mrt { background-color: #008e4f !important; }
+    .bg-bus { background-color: #f29400 !important; }
+    .bg-youbike { background-color: #8cc63f !important; }
+    .bg-train { background-color: #005087 !important; }
+    .bg-walk { background-color: #6c757d !important; }
+
+    .border-start-custom {
+        border-left: 5px solid #cbd5e1 !important;
+    }
+    .border-start-custom.border-mrt { border-left-color: #008e4f !important; }
+    .border-start-custom.border-bus { border-left-color: #f29400 !important; }
+    .border-start-custom.border-youbike { border-left-color: #8cc63f !important; }
+    .border-start-custom.border-train { border-left-color: #005087 !important; }
+    .border-start-custom.border-walk { border-left-color: #6c757d !important; }
+
+    .fs-7 { font-size: 0.9rem !important; }
+    .fs-8 { font-size: 0.8rem !important; }
+    .fs-9 { font-size: 0.72rem !important; }
+    .font-semibold { font-weight: 600; }
+    .font-medium { font-weight: 500; }
 
     .form-select, .form-check-input {
         transition: all 0.2s ease-in-out;
@@ -264,49 +323,114 @@
                 </div>
 
                 <!-- 時間軸路徑詳細 -->
-                <div class="timeline-container ps-1">
-                    {% for step in route_result.steps %}
+                <div class="timeline-container">
+                    <!-- 出發起點 -->
                     <div class="timeline-item">
-                        {% if loop.first %}
-                            <span class="timeline-icon start" title="起點"></span>
-                        {% else %}
-                            <span class="timeline-icon transfer" title="轉乘"></span>
-                        {% endif %}
+                        <span class="timeline-icon start" title="起點">
+                            <i class="fa-solid fa-location-dot"></i>
+                        </span>
                         <div class="ms-2">
-                            <h6 class="mb-1 fw-bold text-dark">{{ step.from }}</h6>
-                            <div class="p-3 my-2 bg-white rounded-3 shadow-none border" style="border-radius: 12px;">
-                                <div class="d-flex align-items-center mb-1 gap-2 flex-wrap">
-                                    {% if step.mode == 'mrt' %}
-                                        <span class="badge text-white" style="background-color: #008e4f;"><i class="bi bi-train-lightrail-front me-1"></i>捷運</span>
-                                    {% elif step.mode == 'bus' %}
-                                        <span class="badge text-white" style="background-color: #f29400;"><i class="bi bi-bus-front me-1"></i>公車</span>
-                                    {% elif step.mode == 'youbike' %}
-                                        <span class="badge text-white" style="background-color: #8cc63f;"><i class="bi bi-bicycle me-1"></i>YouBike</span>
-                                    {% elif step.mode == 'train' %}
-                                        <span class="badge text-white" style="background-color: #005087;"><i class="bi bi-train-front me-1"></i>火車</span>
-                                    {% else %}
-                                        <span class="badge bg-secondary"><i class="bi bi-person-walking me-1"></i>步行</span>
-                                    {% endif %}
-                                    <span class="text-secondary fw-semibold small">{{ step.duration }} 分鐘</span>
-                                    {% if step.cost > 0 %}
-                                        <span class="badge bg-success-subtle text-success border border-success-subtle">{{ step.cost }} 元</span>
-                                    {% else %}
-                                        <span class="badge bg-light text-secondary border">免費</span>
-                                    {% endif %}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2.5 py-1 fs-9 font-semibold mb-1">出發點</span>
+                            <h5 class="mb-0 fw-bold text-dark fs-7">{{ route_result.start }}</h5>
+                        </div>
+                    </div>
+
+                    {% for step in route_result.steps %}
+                    <!-- 乘車段落卡片 -->
+                    <div class="timeline-item">
+                        <span class="timeline-icon mode-icon {{ step.mode }}" title="{{ step.mode_name }}">
+                            {% if step.mode == 'mrt' %}
+                                <i class="fa-solid fa-train-subway"></i>
+                            {% elif step.mode == 'bus' %}
+                                <i class="fa-solid fa-bus"></i>
+                            {% elif step.mode == 'youbike' %}
+                                <i class="fa-solid fa-bicycle"></i>
+                            {% elif step.mode == 'train' %}
+                                <i class="fa-solid fa-train"></i>
+                            {% else %}
+                                <i class="fa-solid fa-person-walking"></i>
+                            {% endif %}
+                        </span>
+                        <div class="ms-2">
+                            <div class="card segment-card border-start-custom border-{{ step.mode }} shadow-none p-3 my-2">
+                                <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                                    <span class="badge text-white bg-{{ step.mode }} font-semibold px-2 py-1 fs-9">
+                                        {% if step.mode == 'mrt' %}捷運
+                                        {% elif step.mode == 'bus' %}公車
+                                        {% elif step.mode == 'youbike' %}YouBike
+                                        {% elif step.mode == 'train' %}火車
+                                        {% else %}步行{% endif %}
+                                    </span>
+                                    <div class="time-cost-info d-flex align-items-center gap-2">
+                                        <span class="text-secondary fw-semibold small fs-8"><i class="fa-regular fa-clock me-1"></i>{{ step.duration }} 分鐘</span>
+                                        {% if step.cost > 0 %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 fs-9"><i class="fa-solid fa-coins me-1"></i>{{ step.cost }} 元</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-secondary border px-2 py-1 fs-9">免費</span>
+                                        {% endif %}
+                                    </div>
                                 </div>
-                                <p class="mb-0 text-muted small mt-2">{{ step.instruction }}</p>
+                                
+                                <div class="d-flex align-items-center justify-content-start my-2 text-dark font-medium flex-wrap">
+                                    <span class="fw-bold fs-7">{{ step.from }}</span>
+                                    <i class="fa-solid fa-arrow-right mx-2 text-muted fs-8"></i>
+                                    <span class="fw-bold text-primary fs-7">{{ step.to }}</span>
+                                </div>
+                                
+                                <p class="mb-0 text-muted small mt-1 fs-8"><i class="fa-solid fa-circle-info text-secondary me-1"></i>{{ step.instruction }}</p>
                             </div>
                         </div>
                     </div>
-                    {% if loop.last %}
-                    <div class="timeline-item pb-1">
-                        <span class="timeline-icon end" title="終點"></span>
+
+                    <!-- 如果不是最後一步，顯示轉乘點提示 -->
+                    {% if not loop.last %}
+                    <div class="timeline-item">
+                        <span class="timeline-icon transfer" title="轉乘">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </span>
                         <div class="ms-2">
-                            <h6 class="mb-0 fw-bold text-danger">{{ step.to }} (目的地)</h6>
+                            <div class="transfer-alert d-flex align-items-center p-2.5 my-2 shadow-none border">
+                                <div class="me-2 text-warning fs-5">
+                                    <i class="fa-solid fa-circle-nodes"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold fs-8 text-dark">【轉乘點】在 {{ step.to }} 轉乘</div>
+                                    <div class="fs-9 text-secondary mt-0.5">
+                                        由 
+                                        <strong class="text-dark bg-white px-1 py-0.5 rounded border border-secondary-subtle">
+                                            {% if step.mode == 'mrt' %}🚇 捷運
+                                            {% elif step.mode == 'bus' %}🚌 公車
+                                            {% elif step.mode == 'youbike' %}🚲 YouBike
+                                            {% elif step.mode == 'train' %}🚆 火車
+                                            {% else %}🚶 步行{% endif %}
+                                        </strong> 
+                                        轉乘 
+                                        <strong class="text-primary bg-white px-1 py-0.5 rounded border border-primary-subtle">
+                                            {% set next_step = route_result.steps[loop.index] %}
+                                            {% if next_step.mode == 'mrt' %}🚇 捷運
+                                            {% elif next_step.mode == 'bus' %}🚌 公車
+                                            {% elif next_step.mode == 'youbike' %}🚲 YouBike
+                                            {% elif next_step.mode == 'train' %}🚆 火車
+                                            {% else %}🚶 步行{% endif %}
+                                        </strong>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     {% endif %}
                     {% endfor %}
+
+                    <!-- 抵達目的地 -->
+                    <div class="timeline-item">
+                        <span class="timeline-icon end" title="終點">
+                            <i class="fa-solid fa-flag-checkered"></i>
+                        </span>
+                        <div class="ms-2">
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle rounded-pill px-2.5 py-1 fs-9 font-semibold mb-1">終點</span>
+                            <h5 class="mb-0 fw-bold text-danger fs-7">{{ route_result.end }} (目的地)</h5>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
