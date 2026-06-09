@@ -42,13 +42,30 @@ def init_db(db=None):
         # 如果是在 Flask 外取得獨立連線，記得在初始化後關閉它
         try:
             g
-        except RuntimeError:
+        except (RuntimeError, NameError):
             close_after = True
             
     schema_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../database/schema.sql'))
     with open(schema_path, 'r', encoding='utf-8') as f:
         db.executescript(f.read())
     db.commit()
+    
+    # 建立預設測試使用者帳號，讓組員與測試人員可以順利直接登入
+    try:
+        from werkzeug.security import generate_password_hash
+        default_users = [
+            ("admin", "admin123456", "admin@example.com"),
+            ("test", "test123456", "test@example.com")
+        ]
+        for username, password, email in default_users:
+            pw_hash = generate_password_hash(password)
+            db.execute(
+                "INSERT OR IGNORE INTO user (username, password_hash, email) VALUES (?, ?, ?)",
+                (username, pw_hash, email)
+            )
+        db.commit()
+    except Exception as e:
+        pass
     
     if close_after:
         db.close()
